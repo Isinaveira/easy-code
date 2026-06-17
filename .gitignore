@@ -1,0 +1,11 @@
+#Dependencies
+node_modules/
+
+#Local 
+.env
+.env.*
+
+#Build and cache
+dist/
+.vitest-result/
+coverage/
