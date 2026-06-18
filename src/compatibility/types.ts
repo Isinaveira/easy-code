@@ -9,6 +9,8 @@ export interface ModelDescriptor {
   contextWindow?: number;
   capabilities?: Capability[];
   supportedOutputFormats?: OutputFormat[];
+  score?: number;
+  use?: string;
 }
 
 export interface CompatibilityResult {

@@ -71,17 +71,33 @@ export function enrichModelDescriptor(model: ModelDescriptor): CognitiveModelIte
   const normalized = model.name.toLowerCase().trim();
   const foundKey = Object.keys(COGNITIVE_METRICS_MAP).find(key => normalized.includes(key));
 
+  // Determine use case and base metrics
+  const score = typeof model.score === 'number' ? model.score : 70;
+  const useCase = model.use || 'general';
+
+  const defaultMetrics = {
+    reasoning: useCase === 'reasoning' || useCase === 'general' ? score : 50,
+    coding: useCase === 'coding' || useCase === 'general' ? score : 50,
+    speed: 70
+  };
+
   const metadata = foundKey ? COGNITIVE_METRICS_MAP[foundKey] : {
-    contextWindow: 4096,
-    capabilities: [] as Capability[],
-    supportedOutputFormats: ['text'] as OutputFormat[],
-    metrics: { reasoning: 50, coding: 50, speed: 50 }
+    contextWindow: model.contextWindow || 4096,
+    capabilities: model.capabilities || [] as Capability[],
+    supportedOutputFormats: model.supportedOutputFormats || ['text', 'markdown', 'json', 'code'] as OutputFormat[],
+    metrics: defaultMetrics
   };
 
   return {
+    contextWindow: model.contextWindow || metadata.contextWindow,
+    capabilities: model.capabilities || metadata.capabilities,
+    supportedOutputFormats: model.supportedOutputFormats || metadata.supportedOutputFormats,
     ...model,
-    ...metadata
-  };
+    metrics: {
+      ...metadata.metrics,
+      ...((model as any).metrics || {})
+    }
+  } as CognitiveModelItem;
 }
 
 /**

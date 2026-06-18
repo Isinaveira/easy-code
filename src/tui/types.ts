@@ -47,6 +47,8 @@ export type TuiAction =
   | { type: 'SET_DETECTION_RESULTS'; payload: { profile: HardwareProfile; vram: number; models: CognitiveModelItem[]; isLlmfitHealthy: boolean } }
   | { type: 'SET_DETECTION_ERROR'; payload: string }
   | { type: 'ASSIGN_MODEL_TO_AGENT'; payload: { agent: string; model: string } }
+  | { type: 'TOGGLE_AGENT_ON'; payload: { agent: string; model: string } }
+  | { type: 'TOGGLE_AGENT_OFF'; payload: string }
   | { type: 'PREVIOUS_AGENT' }
   | { type: 'START_SAVE' }
   | { type: 'SET_SAVE_SUCCESS' }

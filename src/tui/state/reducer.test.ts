@@ -95,4 +95,20 @@ describe('TUI State Reducer', () => {
     expect(state.currentAgentIndex).toBe(0);
     expect(state.activeScreen).toBe('MODEL_SELECTION');
   });
+
+  it('should handle TOGGLE_AGENT_ON and TOGGLE_AGENT_OFF correctly', () => {
+    let state = tuiReducer(INITIAL_STATE, {
+      type: 'TOGGLE_AGENT_ON',
+      payload: { agent: 'agentic-orchestrator', model: 'phi3:mini' }
+    });
+    expect(state.selectedAgents).toEqual(['agentic-orchestrator']);
+    expect(state.modelAssignments).toEqual({ 'agentic-orchestrator': 'phi3:mini' });
+
+    state = tuiReducer(state, {
+      type: 'TOGGLE_AGENT_OFF',
+      payload: 'agentic-orchestrator'
+    });
+    expect(state.selectedAgents).toEqual([]);
+    expect(state.modelAssignments).toEqual({});
+  });
 });

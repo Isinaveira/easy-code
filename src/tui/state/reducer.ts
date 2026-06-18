@@ -110,6 +110,33 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
       };
     }
 
+    case 'TOGGLE_AGENT_ON': {
+      const { agent, model } = action.payload;
+      const selectedAgents = state.selectedAgents.includes(agent)
+        ? state.selectedAgents
+        : [...state.selectedAgents, agent];
+      return {
+        ...state,
+        selectedAgents,
+        modelAssignments: {
+          ...state.modelAssignments,
+          [agent]: model
+        }
+      };
+    }
+
+    case 'TOGGLE_AGENT_OFF': {
+      const agent = action.payload;
+      const selectedAgents = state.selectedAgents.filter(a => a !== agent);
+      const modelAssignments = { ...state.modelAssignments };
+      delete modelAssignments[agent];
+      return {
+        ...state,
+        selectedAgents,
+        modelAssignments
+      };
+    }
+
     case 'PREVIOUS_AGENT': {
       if (state.currentAgentIndex > 0) {
         return {

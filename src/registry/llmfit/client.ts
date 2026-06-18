@@ -76,11 +76,31 @@ export class LlmfitClient {
           }
         }
 
-        return {
+        const descriptor: any = {
           name,
           sizeGb,
           description: item.description || `Model fetched from llmfit (Fit score: ${item.score ?? 'N/A'})`
         };
+
+        if (typeof item.score === 'number' || item.min_fit) {
+          descriptor.score = typeof item.score === 'number' ? item.score : (item.min_fit === 'good' ? 80 : 50);
+        }
+        if (item.use || item.useCase || item.use_case) {
+          descriptor.use = item.use || item.useCase || item.use_case;
+        }
+        if (Array.isArray(item.capabilities)) {
+          descriptor.capabilities = item.capabilities;
+        }
+        const cw = item.contextWindow || item.context_window || item.context;
+        if (typeof cw === 'number') {
+          descriptor.contextWindow = cw;
+        }
+        const formats = item.supportedOutputFormats || item.output_formats || item.formats;
+        if (Array.isArray(formats)) {
+          descriptor.supportedOutputFormats = formats;
+        }
+
+        return descriptor;
       });
     } catch (error) {
       // Graceful error fallback

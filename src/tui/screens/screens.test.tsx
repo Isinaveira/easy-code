@@ -69,7 +69,7 @@ describe('TUI Screen Flow Integration', () => {
       ok: true,
       status: 200,
       json: async () => [
-        { name: 'phi3:mini', sizeGb: 2.2, description: 'Phi3 Mini model' }
+        { name: 'phi3:mini', sizeGb: 2.2, description: 'Phi3 Mini model', score: 90, use: 'reasoning' }
       ]
     });
 
@@ -102,36 +102,48 @@ describe('TUI Screen Flow Integration', () => {
       await waitTick();
     });
 
-    // Verify step 3: AgentSelectionScreen
-    expect(lastFrame()).toContain('Selecciona los agentes que se ejecutarán en este nodo:');
-
-    // Press Space on index 0 to select agentic-orchestrator, then Enter to confirm
-    await act(async () => {
-      stdin.write(' '); // Space
-      await waitTick();
-    });
-    await act(async () => {
-      stdin.write('\r'); // Enter
-      await waitTick();
-    });
-
-    // Hardware Detection Screen handles itself asynchronously and navigates to ModelSelectionScreen.
+    // Hardware Detection Screen handles itself asynchronously first and then navigates to AgentSelectionScreen.
     // Wait for the async detect calls and API catalog fetches to settle.
     await act(async () => {
       await waitTick(150);
     });
 
-    // Verify step 5: ModelSelectionScreen
-    expect(lastFrame()).toContain('Select model for agentic-orchestrator:');
+    // Verify step 4: AgentSelectionScreen
+    expect(lastFrame()).toContain('Configuración de Agentes y Modelos del Nodo:');
+
+    // Press Space on agentic-orchestrator (index 0) to open model selection modal
+    await act(async () => {
+      stdin.write(' ');
+      await waitTick();
+    });
+
+    // Verify modal is open
+    expect(lastFrame()).toContain('Seleccionar Modelo para: agentic-orchestrator');
     expect(lastFrame()).toContain('phi3:mini');
 
-    // Select phi3:mini (first option) by pressing Enter
+    // Press Enter to confirm model selection
     await act(async () => {
-      stdin.write('\r'); // Enter
+      stdin.write('\r');
+      await waitTick();
+    });
+
+    // Verify we are back on agent list and agentic-orchestrator has model assigned
+    expect(lastFrame()).toContain('agentic-orchestrator');
+    expect(lastFrame()).toContain('(Model: phi3:mini)');
+
+    // Press Up arrow to highlight "Confirmar y Guardar Configuración"
+    await act(async () => {
+      stdin.write('\u001b[A'); // Up Arrow loops around to bottom
+      await waitTick();
+    });
+
+    // Press Enter to confirm agent selection and save
+    await act(async () => {
+      stdin.write('\r');
       await waitTick(150); // Give save async calls time to run
     });
 
-    // Verify step 6: SaveScreen (successful config save)
+    // Verify step 5: SaveScreen (successful config save)
     expect(lastFrame()).toContain('Resumen de Asignaciones:');
     expect(lastFrame()).toContain('agentic-orchestrator → phi3:mini');
     expect(lastFrame()).toContain('¡Todo listo! Tu entorno de easy-code ha sido inicializado.');

@@ -10,7 +10,7 @@ export const NodeRoleScreen: React.FC = () => {
 
   const handleSelect = (value: string) => {
     dispatch({ type: 'SET_NODE_ROLE', payload: value as 'master' | 'worker' });
-    dispatch({ type: 'NAVIGATE', payload: 'AGENT_SELECTION' });
+    dispatch({ type: 'NAVIGATE', payload: 'HARDWARE_DETECTION' });
   };
 
   useInput((input, key) => {
