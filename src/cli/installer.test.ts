@@ -7,6 +7,9 @@ import { HardwareDetector } from "../hardware/index.js";
 import { JsonPersistenceStore, EnvPersistenceWriter } from "../persistence/index.js";
 import fs from "fs/promises";
 
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
 vi.mock("execa");
 vi.mock("fs/promises");
 vi.mock("@clack/prompts", () => ({
@@ -65,6 +68,7 @@ describe("getTailscaleIP", () => {
 describe("NodeInstaller Unit Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetch.mockResolvedValue({ ok: false });
     vi.mocked(text).mockResolvedValue("test-node");
     // First select call = role, subsequent calls = model selection per agent
     vi.mocked(select)
@@ -125,6 +129,58 @@ describe("NodeInstaller Unit Tests", () => {
       AVAILABLE_VRAM: "10",
       TAILSCALE_IP: "10.0.0.5"
     });
+  });
+
+  it("should integrate with llmfit registry when the daemon is running and healthy", async () => {
+    // 1st call: health check (true)
+    mockFetch.mockResolvedValueOnce({ ok: true });
+    // 2nd call: get models
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { name: "gemma2:9b", sizeGb: 5.5, description: "llmfit gemma" }
+      ]
+    });
+
+    const mockDetector = {
+      detect: vi.fn().mockResolvedValue({
+        os: "linux",
+        cpu: { cores: 8, model: "Intel", architecture: "x64" },
+        gpu: { vendor: "nvidia", model: "RTX 3080", vramGb: 10 },
+        memory: { totalGb: 32 },
+        accelerator: "cuda"
+      })
+    } as any;
+
+    const mockJsonStore = {
+      saveNodeState: vi.fn().mockResolvedValue(undefined),
+      loadNodeState: vi.fn().mockResolvedValue(null)
+    };
+
+    const mockEnvWriter = {
+      saveEnv: vi.fn().mockResolvedValue(undefined)
+    };
+
+    vi.mocked(execa).mockImplementation((command) => {
+      if (command === "tailscale") return Promise.resolve({ stdout: "10.0.0.5\n" }) as any;
+      return Promise.resolve({ stdout: "v1.0.0" }) as any;
+    });
+
+    const installer = new NodeInstaller(mockDetector, mockJsonStore, mockEnvWriter);
+    await installer.run();
+
+    // Verify llmfit integration note
+    expect(note).toHaveBeenCalledWith(
+      expect.stringContaining("✔ API de llmfit detectada"),
+      "✨ Integración de llmfit"
+    );
+
+    // Verify it allowed selecting the llmfit-provided model
+    expect(select).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.arrayContaining([
+        expect.objectContaining({ value: "gemma2:9b" })
+      ])
+    }));
   });
 });
 

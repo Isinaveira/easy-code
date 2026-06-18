@@ -13,7 +13,7 @@ import { execa } from "execa";
 import picocolors from "picocolors";
 import { HardwareDetector } from "../hardware/index.js";
 import { JsonPersistenceStore, EnvPersistenceWriter, PersistenceStore, EnvironmentWriter } from "../persistence/index.js";
-import { OllamaRegistry } from "../registry/index.js";
+import { OllamaRegistry, LlmfitClient, LlmfitRegistry, type ModelRegistry } from "../registry/index.js";
 import { getSegmentedCatalogForAgent, enrichModelDescriptor, AGENT_REQUIREMENTS_MAP, type AgentProfile } from "../agents/index.js";
 
 
@@ -164,10 +164,31 @@ export class NodeInstaller {
       "💻 Recursos del Sistema Detectados"
     );
 
-    // Cognitive Model Assignment per Agent
-    const registry = new OllamaRegistry();
+    // Cognitive Model Assignment per Agent (Dynamic llmfit or Static Ollama fallback)
+    const llmfitClient = new LlmfitClient();
+    const llmfitHealthy = await llmfitClient.health();
+    let registry: ModelRegistry;
+
+    if (llmfitHealthy) {
+      note(
+        picocolors.green("✔ API de llmfit detectada (ejecutándose en puerto 8787). Motor de recomendaciones dinámicas activo."),
+        "✨ Integración de llmfit"
+      );
+      registry = new LlmfitRegistry(llmfitClient);
+    } else {
+      note(
+        picocolors.yellow(
+          "llmfit no se está ejecutando. Cayendo en el catálogo estático de Ollama.\n" +
+          "Ejecuta \"llmfit serve\" en otra terminal para habilitar sugerencias dinámicas."
+        ),
+        "ℹ Estado de llmfit"
+      );
+      registry = new OllamaRegistry();
+    }
+
     const rawHubModels = await registry.listAvailable();
     const cognitiveCatalog = rawHubModels.map(enrichModelDescriptor);
+
 
     const modelAssignments: Record<string, string> = {};
 
