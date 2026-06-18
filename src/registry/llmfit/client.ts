@@ -22,12 +22,18 @@ export class LlmfitClient {
     }
   }
 
-  /**
-   * Fetches models from llmfit API and maps them to ModelDescriptor items.
-   */
-  async getModels(): Promise<ModelDescriptor[]> {
+  async getModels(filters: Record<string, any> = {}): Promise<ModelDescriptor[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/models`, {
+      const queryParams = new URLSearchParams();
+      for (const [key, value] of Object.entries(filters)) {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      }
+      const queryString = queryParams.toString();
+      const url = `${this.baseUrl}/api/v1/models` + (queryString ? `?${queryString}` : '');
+      
+      const response = await fetch(url, {
         signal: AbortSignal.timeout(3000)
       });
       if (!response.ok) {
@@ -94,6 +100,21 @@ export class LlmfitClient {
         const parameterSize = item.params || item.parameter_size || item.parameters;
         if (parameterSize) {
           descriptor.params = typeof parameterSize === 'number' ? `${parameterSize}B` : String(parameterSize);
+        }
+        if (item.score_components) {
+          descriptor.score_components = item.score_components;
+        }
+        const tps = item.estimated_tps || item.tps;
+        if (typeof tps === 'number') {
+          descriptor.estimated_tps = tps;
+        }
+        const fit = item.fit_level || item.fit;
+        if (fit) {
+          descriptor.fit_level = String(fit);
+        }
+        const mem = item.memory_required_gb || item.total_memory_gb;
+        if (typeof mem === 'number') {
+          descriptor.memory_required_gb = mem;
         }
         if (Array.isArray(item.capabilities)) {
           descriptor.capabilities = item.capabilities;

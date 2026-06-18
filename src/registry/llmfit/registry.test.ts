@@ -81,6 +81,42 @@ describe('Llmfit Sub-Services', () => {
       expect(models[0]).toEqual({ name: 'mistral:7b', sizeGb: 4.2, description: 'Mistral model' });
     });
 
+    it('should serialize query filters as URL query parameters and parse detailed fields', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          {
+            name: 'phi3:mini',
+            sizeGb: 2.2,
+            score: 98.4,
+            score_components: { context: 100, fit: 100, quality: 96.5, speed: 100 },
+            estimated_tps: 47.2,
+            fit_level: 'Good',
+            memory_required_gb: 10.7
+          }
+        ]
+      });
+
+      const client = new LlmfitClient('http://localhost:8787');
+      const models = await client.getModels({ min_fit: 'good', limit: 1 });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8787/api/v1/models?min_fit=good&limit=1',
+        expect.any(Object)
+      );
+      expect(models).toHaveLength(1);
+      expect(models[0]).toEqual({
+        name: 'phi3:mini',
+        sizeGb: 2.2,
+        description: 'Model fetched from llmfit (Fit score: 98.4)',
+        score: 98.4,
+        score_components: { context: 100, fit: 100, quality: 96.5, speed: 100 },
+        estimated_tps: 47.2,
+        fit_level: 'Good',
+        memory_required_gb: 10.7
+      });
+    });
+
     it('should return empty list on fetch error', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 

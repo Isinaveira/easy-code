@@ -13,6 +13,10 @@ export interface ModelDescriptor {
   use?: string;
   quant?: string;
   params?: string;
+  score_components?: any;
+  estimated_tps?: number;
+  fit_level?: string;
+  memory_required_gb?: number;
 }
 
 export interface CompatibilityResult {
