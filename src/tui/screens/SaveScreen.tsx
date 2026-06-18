@@ -6,6 +6,15 @@ import { useServices } from '../providers/ServiceProvider.js';
 import { execa } from 'execa';
 import theme from '../theme/index.js';
 
+function formatModelName(name: string, maxLen: number = 32): string {
+  if (name.length <= maxLen) {
+    return name.padEnd(maxLen);
+  }
+  const leftChars = Math.floor((maxLen - 3) / 2);
+  const rightChars = maxLen - 3 - leftChars;
+  return name.slice(0, leftChars) + '...' + name.slice(-rightChars);
+}
+
 export async function getTailscaleIP(): Promise<string | null> {
   try {
     const { stdout } = await execa('tailscale', ['ip', '-4']);
@@ -85,7 +94,7 @@ export const SaveScreen: React.FC = () => {
             <Text color={theme.colors.primary} bold>Asignaciones de Modelos:</Text>
             {Object.entries(state.modelAssignments).map(([agent, model]) => (
               <Text key={agent} color={theme.colors.white}>
-                - {agent} → <Text color={theme.colors.success}>{model}</Text>
+                - {agent} → <Text color={theme.colors.success}>{formatModelName(model, 35)}</Text>
               </Text>
             ))}
           </Box>

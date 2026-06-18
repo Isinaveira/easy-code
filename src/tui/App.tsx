@@ -17,9 +17,10 @@ import SaveScreen from './screens/SaveScreen.js';
 const SCREEN_STEPS: Record<string, number> = {
   NODE_NAME: 1,
   NODE_ROLE: 2,
-  HARDWARE_DETECTION: 3,
-  AGENT_SELECTION: 4,
-  SAVE_CONFIG: 5
+  AGENT_SELECTION: 3,
+  HARDWARE_DETECTION: 4,
+  MODEL_SELECTION: 5,
+  SAVE_CONFIG: 6
 };
 
 const AppContent: React.FC = () => {
@@ -35,6 +36,8 @@ const AppContent: React.FC = () => {
         return <AgentSelectionScreen />;
       case 'HARDWARE_DETECTION':
         return <HardwareDetectionScreen />;
+      case 'MODEL_SELECTION':
+        return <ModelSelectionScreen />;
       case 'SAVE_CONFIG':
         return <SaveScreen />;
       default:
@@ -48,7 +51,7 @@ const AppContent: React.FC = () => {
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1} width={80}>
       <Header />
-      <StatusBar currentStep={currentStep} totalSteps={5} statusText={statusText} />
+      <StatusBar currentStep={currentStep} totalSteps={6} statusText={statusText} />
       <Box minHeight={12} borderStyle="double" borderColor="cyan" padding={1} flexDirection="column">
         {renderActiveScreen()}
       </Box>

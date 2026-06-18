@@ -41,7 +41,7 @@ export const HardwareDetectionScreen: React.FC = () => {
           isLlmfitHealthy
         }
       });
-      dispatch({ type: 'NAVIGATE', payload: 'AGENT_SELECTION' });
+      dispatch({ type: 'NAVIGATE', payload: 'MODEL_SELECTION' });
     } catch (err: any) {
       dispatch({
         type: 'SET_DETECTION_ERROR',
