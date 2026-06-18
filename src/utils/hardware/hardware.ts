@@ -1,5 +1,3 @@
-// src/utils/hardware/hardware.ts
-
 export interface NodeTopologyOptions {
   nodeName: string;
   nodeRole: string;
@@ -19,8 +17,12 @@ export function generateNodeTopologyConfig(options: NodeTopologyOptions) {
 }
 
 /**
- * Filtra un catálogo de modelos del mercado basándose únicamente en el límite físico de VRAM
+ * Filtra un catálogo de modelos del mercado basándose en los límites de hardware.
+ * Si opera en modo CPU/APU, resta un margen de seguridad de 4GB para la estabilidad del sistema operativo.
  */
-export function filterModelsByVram(catalogo: any[], availableVramGb: number) {
-  return catalogo.filter(model => model.sizeGb <= availableVramGb);
+export function filterModelsByVram(catalogo: any[], availableMemGb: number, isCpuMode = false) {
+  const safetyMargin = isCpuMode ? 4 : 0;
+  const effectiveTechoGb = availableMemGb - safetyMargin;
+
+  return catalogo.filter(model => model.sizeGb <= effectiveTechoGb);
 }

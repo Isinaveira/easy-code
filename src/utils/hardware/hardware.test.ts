@@ -7,7 +7,7 @@ describe("Configuración de Topología y Asignación de Agentes por Nodo", () =>
     const seleccionUsuario = {
       nodeName: "master-node-01",
       nodeRole: "master",
-      selectedAgents: ["phase-init", "phase-explore"]
+      selectedAgents: ["phase-init", "phase-explore"],
     };
 
     const configEnv = generateNodeTopologyConfig(seleccionUsuario);
@@ -21,7 +21,7 @@ describe("Configuración de Topología y Asignación de Agentes por Nodo", () =>
     const seleccionUsuario = {
       nodeName: "worker-node-02",
       nodeRole: "worker",
-      selectedAgents: ["consensus-fixer"]
+      selectedAgents: ["consensus-fixer"],
     };
 
     const configEnv = generateNodeTopologyConfig(seleccionUsuario);
@@ -36,12 +36,26 @@ describe("Filtro Físico de Modelos", () => {
   it("debe descartar los modelos que superen el límite de VRAM del hardware", () => {
     const catalogo = [
       { name: "modelo-ligero", sizeGb: 4.0 },
-      { name: "modelo-pesado", sizeGb: 24.0 }
+      { name: "modelo-pesado", sizeGb: 24.0 },
     ];
-    
+
     const disponibles = filterModelsByVram(catalogo, 12.0);
-    
+
     expect(disponibles).toHaveLength(1);
     expect(disponibles[0].name).toBe("modelo-ligero");
+  });
+  
+  it("debe aplicar un margen de seguridad de 4GB si opera en modo CPU/APU", () => {
+    const catalogo = [
+      { name: "phi3:mini", sizeGb: 2.2 },
+      { name: "llama3:8b", sizeGb: 4.7 },
+      { name: "gemma2:9b", sizeGb: 9.5 },
+    ];
+
+    // Simulamos 12GB de RAM en una APU -> Techo efectivo = 12 - 4 = 8GB
+    const disponibles = filterModelsByVram(catalogo, 12.0, true);
+
+    expect(disponibles).toHaveLength(2); // Entran phi3 y llama3; gemma2 queda fuera
+    expect(disponibles.find((m) => m.name === "gemma2:9b")).toBeUndefined();
   });
 });
