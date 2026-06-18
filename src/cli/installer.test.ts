@@ -1,14 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { execa } from "execa";
 import { checkDependency, main, getTailscaleIP } from "./installer.js";
-import { saveEnvironment, EnvConfig } from "../utils/env.js";
-import { select } from "@clack/prompts";
+import { saveEnvironment, EnvConfig } from "../environment/env.js";
+import { select, text, multiselect } from "@clack/prompts";
 import fs from "fs/promises";
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.resetAllMocks();
-});
 
 vi.mock("execa");
 vi.mock("fs/promises");
@@ -22,8 +18,19 @@ vi.mock("@clack/prompts", () => ({
     stop: vi.fn(),
   })),
   select: vi.fn(),
+  text: vi.fn(),
+  multiselect: vi.fn(),
   isCancel: vi.fn(),
 }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.resetAllMocks();
+  vi.mocked(text).mockResolvedValue("default-node");
+  vi.mocked(select).mockResolvedValue("worker");
+  vi.mocked(multiselect).mockResolvedValue(["phase-init"]);
+});
+
 
 describe("checkDependency", () => {
   it("returns true if command exists", async () => {
@@ -71,27 +78,27 @@ describe("main flow", () => {
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it("debe solicitar el rol de nodo y escribir el archivo .env correspondiente", async () => {
-    // ◄ Forzamos a que la función del mock devuelva 'any' para evitar las 22 propiedades que faltan
-    vi.mocked(execa).mockImplementation((command) => {
-      if (command === "tailscale") {
-        return Promise.reject(new Error("Not active"));
-      }
-      return Promise.resolve({ stdout: "v1.0.0" }) as any; // ◄ El secreto está en este 'as any'
-    });
-
-    vi.mocked(select).mockResolvedValue("master");
-
-    const exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(() => undefined as never);
-
-    await main();
-
-    expect(fs.writeFile).toHaveBeenCalledWith(".env", "NODE_ROLE=master\n");
-
-    exitSpy.mockRestore();
+  it("debe solicitar nombre, rol y agentes del nodo y escribir la topología completa en el .env", async () => {
+  vi.mocked(execa).mockImplementation((command) => {
+    if (command === "tailscale") return Promise.reject(new Error("Not active"));
+    return Promise.resolve({ stdout: "v1.0.0" }) as any;
   });
+
+  // Configuramos las respuestas de Clack usando los mocks globales
+  vi.mocked(text).mockResolvedValue("master-node-01");
+  vi.mocked(select).mockResolvedValue("master");
+  vi.mocked(multiselect).mockResolvedValue(["phase-init", "phase-explore"]);
+
+  const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+
+  await main();
+
+  // Ahora sí, esperamos la estructura de la topología distribuida
+  const expectedEnvContent = "NODE_NAME=master-node-01\nNODE_ROLE=master\nACTIVE_AGENTS=phase-init,phase-explore\n";
+  expect(fs.writeFile).toHaveBeenCalledWith(".env", expectedEnvContent);
+
+  exitSpy.mockRestore();
+});
 });
 
 describe("getTailscaleIP", () => {
