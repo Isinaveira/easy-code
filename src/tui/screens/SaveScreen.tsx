@@ -5,6 +5,8 @@ import { useAppState } from '../providers/AppStateProvider.js';
 import { useServices } from '../providers/ServiceProvider.js';
 import { execa } from 'execa';
 import theme from '../theme/index.js';
+import { ModelSelector } from '../../agents/ModelSelector.js';
+import { LlmfitClient } from '../../registry/llmfit/client.js';
 
 function formatModelName(name: string, maxLen: number = 32): string {
   if (name.length <= maxLen) {
@@ -30,6 +32,7 @@ export const SaveScreen: React.FC = () => {
   const { exit } = useApp();
   const [tailscaleIp, setTailscaleIp] = useState<string | null>(null);
   const [tailscaleChecked, setTailscaleChecked] = useState(false);
+  const [resolvedModels, setResolvedModels] = useState<Record<string, string>>(state.modelAssignments);
 
   const performSave = async () => {
     dispatch({ type: 'START_SAVE' });
@@ -38,12 +41,35 @@ export const SaveScreen: React.FC = () => {
       setTailscaleIp(ip);
       setTailscaleChecked(true);
 
+      // Dynamically select models using ModelSelector
+      const client = new LlmfitClient();
+      const selector = new ModelSelector(client);
+      if (state.hardwareProfile) {
+        selector.setHardwareProfile(state.hardwareProfile);
+      }
+
+      const resolvedAssignments: Record<string, string> = { ...state.modelAssignments };
+      for (const agent of state.selectedAgents) {
+        try {
+          const modelDesc = await selector.selectModelForAgent(agent as any);
+          resolvedAssignments[agent] = modelDesc.name;
+        } catch (err) {
+          console.warn(`[SaveScreen] ModelSelector no pudo resolver para ${agent}, usando manual o 'none':`, err);
+          if (!resolvedAssignments[agent]) {
+            resolvedAssignments[agent] = 'none';
+          }
+        }
+      }
+
+      setResolvedModels(resolvedAssignments);
+
       // Save structured node state
       await jsonStore.saveNodeState({
         nodeName: state.nodeName,
         nodeRole: state.nodeRole,
         activeAgents: state.selectedAgents,
-        hardwareProfile: state.hardwareProfile
+        hardwareProfile: state.hardwareProfile || undefined,
+        modelAssignments: resolvedAssignments
       });
 
       // Save environment configuration
@@ -54,6 +80,12 @@ export const SaveScreen: React.FC = () => {
         AVAILABLE_VRAM: state.detectedVram.toString(),
         ...(ip && { TAILSCALE_IP: ip }),
       };
+
+      // Expose selected models in environment
+      for (const [agent, model] of Object.entries(resolvedAssignments)) {
+        const envKey = `MODEL_${agent.toUpperCase().replace(/-/g, '_')}`;
+        envConfig[envKey] = model;
+      }
 
       await envWriter.saveEnv(envConfig);
 
@@ -92,7 +124,7 @@ export const SaveScreen: React.FC = () => {
           <Text color={theme.colors.white}>• Agentes Activos: {state.selectedAgents.join(', ')}</Text>
           <Box flexDirection="column" marginTop={1}>
             <Text color={theme.colors.primary} bold>Asignaciones de Modelos:</Text>
-            {Object.entries(state.modelAssignments).map(([agent, model]) => (
+            {Object.entries(resolvedModels).map(([agent, model]) => (
               <Text key={agent} color={theme.colors.white}>
                 - {agent} → <Text color={theme.colors.success}>{formatModelName(model, 35)}</Text>
               </Text>

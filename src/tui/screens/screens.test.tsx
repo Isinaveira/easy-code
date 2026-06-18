@@ -58,19 +58,33 @@ describe('TUI Screen Flow Integration', () => {
       envWriter: mockEnvWriter as any
     };
 
-    // 2. Mock llmfit API endpoints
-    // First call: health check (healthy)
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200
-    });
-    // Second call: get models
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => [
-        { name: 'phi3:mini', sizeGb: 2.2, description: 'Phi3 Mini model', score: 90, use: 'reasoning' }
-      ]
+    // 2. Mock llmfit API endpoints dynamically
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/health')) {
+        return { ok: true, status: 200 };
+      }
+      if (url.includes('/api/v1/models')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              name: 'phi3:mini',
+              sizeGb: 2.2,
+              description: 'Phi3 Mini model',
+              score: 90,
+              use: 'reasoning',
+              score_components: { context: 100, fit: 100, quality: 90, speed: 90 },
+              estimated_tps: 45,
+              fit_level: 'Good',
+              memory_required_gb: 4,
+              contextWindow: 8192,
+              quant: 'Q4_K_M'
+            }
+          ]
+        };
+      }
+      return { ok: false, status: 404 };
     });
 
     let renderResult: any;

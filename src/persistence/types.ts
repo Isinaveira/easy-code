@@ -6,6 +6,7 @@ export interface NodeState {
   nodeRole: string;
   activeAgents: string[];
   hardwareProfile?: HardwareProfile;
+  modelAssignments?: Record<string, string>;
 }
 
 export interface PersistenceStore {
