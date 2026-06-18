@@ -14,10 +14,13 @@
     "@clack/prompts": "^1.5.1",
     "dotenv": "^17.4.2",
     "execa": "^9.6.1",
-    "picocolors": "^1.1.1"
+    "ink": "^7.1.0",
+    "picocolors": "^1.1.1",
+    "react": "^19.2.7"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "@types/react": "^19.2.17",
     "@vitest/coverage-v8": "^4.1.9",
     "fs": "0.0.1-security",
     "tsx": "^4.22.4",
