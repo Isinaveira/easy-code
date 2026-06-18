@@ -21,9 +21,9 @@ describe('Intelligent Selector by Agent Profile', () => {
     }
   ];
 
-  it('should choose reasoning expert model for gentle-orchestrator', () => {
+  it('should choose reasoning expert model for agentic-orchestrator', () => {
     const model = selectBestModelForAgent({
-      agentProfile: 'gentle-orchestrator',
+      agentProfile: 'agentic-orchestrator',
       catalogo: catalogoMercado,
       availableVramGb: 12.0
     });
@@ -44,10 +44,10 @@ describe('Intelligent Selector by Agent Profile', () => {
   it('should throw error if no model fits constraints', () => {
     expect(() => {
       selectBestModelForAgent({
-        agentProfile: 'gentle-orchestrator',
+        agentProfile: 'agentic-orchestrator',
         catalogo: catalogoMercado,
         availableVramGb: 4.0
       });
-    }).toThrow('Ningún modelo del catálogo satisface los requisitos de: gentle-orchestrator');
+    }).toThrow('Ningún modelo del catálogo satisface los requisitos de: agentic-orchestrator');
   });
 });

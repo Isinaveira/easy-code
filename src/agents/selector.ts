@@ -3,7 +3,7 @@ import { ModelDescriptor } from '../compatibility/types.js';
 import { AgentProfile, ModelRequirements, CognitiveModelItem, SelectModelOptions } from './types.js';
 
 export const AGENT_REQUIREMENTS_MAP: Record<AgentProfile, ModelRequirements> = {
-  'gentle-orchestrator': { minContextWindow: 8192, requiredCapabilities: ['tool-calling', 'reasoning'], priorityMetric: 'reasoning' },
+  'agentic-orchestrator': { minContextWindow: 8192, requiredCapabilities: ['tool-calling', 'reasoning'], priorityMetric: 'reasoning' },
   'phase-init': { minContextWindow: 4096, requiredCapabilities: [], priorityMetric: 'speed' },
   'phase-explore': { minContextWindow: 16384, requiredCapabilities: ['reasoning'], priorityMetric: 'reasoning' },
   'phase-propose': { minContextWindow: 8192, requiredCapabilities: ['reasoning'], priorityMetric: 'reasoning' },

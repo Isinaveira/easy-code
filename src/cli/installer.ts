@@ -115,7 +115,7 @@ export class NodeInstaller {
     const selectedAgentsInput = await multiselect({
       message: `Selecciona los agentes que se ejecutarán en este nodo: ${picocolors.dim("(Usa [Espacio] para marcar y [Enter] para confirmar)")}`,
       options: [
-        { value: "gentle-orchestrator", label: "gentle-orchestrator (Coordinador)" },
+        { value: "agentic-orchestrator", label: "agentic-orchestrator (Coordinador)" },
         { value: "phase-init", label: "phase-init" },
         { value: "phase-explore", label: "phase-explore" },
         { value: "phase-propose", label: "phase-propose" },

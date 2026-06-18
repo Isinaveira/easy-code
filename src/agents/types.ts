@@ -2,7 +2,7 @@
 import { ModelDescriptor } from '../compatibility/types.js';
 
 export type AgentProfile =
-  | 'gentle-orchestrator'
+  | 'agentic-orchestrator'
   | 'phase-init'
   | 'phase-explore'
   | 'phase-propose'
