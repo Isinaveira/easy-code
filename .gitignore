@@ -9,3 +9,6 @@ node_modules/
 dist/
 .vitest-result/
 coverage/
+
+#Traceability
+easy-code-trace.json
