@@ -13,6 +13,9 @@ import { execa } from "execa";
 import picocolors from "picocolors";
 import { HardwareDetector } from "../hardware/index.js";
 import { JsonPersistenceStore, EnvPersistenceWriter, PersistenceStore, EnvironmentWriter } from "../persistence/index.js";
+import { OllamaRegistry } from "../registry/index.js";
+import { selectBestModelForAgent, enrichModelDescriptor, AGENT_REQUIREMENTS_MAP, type AgentProfile } from "../agents/index.js";
+
 
 export async function checkDependency(
   command: string,
@@ -161,8 +164,44 @@ export class NodeInstaller {
       "💻 Recursos del Sistema Detectados"
     );
 
+    // Asignación Cognitiva de Modelos a Agentes
+    const registry = new OllamaRegistry();
+    const rawHubModels = await registry.listAvailable();
+    const cognitiveCatalog = rawHubModels.map(enrichModelDescriptor);
+
+    const modelRecommendations: string[] = [];
+    for (const agent of selectedAgents) {
+      try {
+        const bestModel = selectBestModelForAgent({
+          agentProfile: agent as AgentProfile,
+          catalogo: cognitiveCatalog,
+          availableVramGb: detectedVram
+        });
+        const reqs = AGENT_REQUIREMENTS_MAP[agent as AgentProfile];
+        const minCaps = reqs.requiredCapabilities.length > 0 ? reqs.requiredCapabilities.join(', ') : 'Ninguna';
+        
+        modelRecommendations.push(
+          `${picocolors.bold(picocolors.yellow(`🤖 ${agent}`))}\n` +
+          `  • ${picocolors.green("Recomendado    :")} ${bestModel.name}\n` +
+          `  • ${picocolors.cyan("Contexto Mín.  :")} ${reqs.minContextWindow} tokens\n` +
+          `  • ${picocolors.cyan("Habilidades Mín:")} ${minCaps}\n` +
+          `  • ${picocolors.cyan("Métrica Prior. :")} ${reqs.priorityMetric.toUpperCase()}`
+        );
+      } catch (err: any) {
+        modelRecommendations.push(
+          `${picocolors.bold(picocolors.red(`🤖 ${agent}`))}\n` +
+          `  • ${picocolors.red("⚠️ Sin compatibilidad:")} ${err.message}`
+        );
+      }
+    }
+
+    note(
+      modelRecommendations.join('\n\n'),
+      "🎯 Asignación Óptima de Modelos por Agente"
+    );
 
     const ip = await getTailscaleIP();
+
 
     // 1. Guardar estado estructurado completo en JSON (la base de datos estructurada)
     await this.jsonStore.saveNodeState({

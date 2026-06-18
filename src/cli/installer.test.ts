@@ -100,6 +100,7 @@ describe("NodeInstaller Unit Tests", () => {
 
     expect(mockDetector.detect).toHaveBeenCalled();
     expect(note).toHaveBeenCalledWith(expect.any(String), "💻 Recursos del Sistema Detectados");
+    expect(note).toHaveBeenCalledWith(expect.any(String), "🎯 Asignación Óptima de Modelos por Agente");
     expect(mockJsonStore.saveNodeState).toHaveBeenCalledWith({
       nodeName: "test-node",
       nodeRole: "worker",
