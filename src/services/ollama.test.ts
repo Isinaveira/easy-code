@@ -1,43 +1,48 @@
 // src/services/ollama.test.ts
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { getInstalledModels } from "./ollama.js";
+import { getEligibleModelsCatalog } from "./ollama.js";
 
-// Mockeamos el fetch global de Node 18+ para no hacer peticiones HTTP reales en los tests
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-describe("Servicio de Integración con Ollama API", () => {
+describe("Servicio de Catálogo Elástico Cruzado (Local + Hub)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("debe mapear correctamente los modelos devueltos por la API local a nuestro formato en GB", async () => {
-    // Simulamos la respuesta real que escupe el endpoint /api/tags de Ollama
+  it("debe separar locales de disponibles para descargar, filtrando por VRAM y evitando duplicados", async () => {
+    // Simulamos que el usuario ya tiene descargado localmente 'phi3:mini'
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         models: [
-          { name: "llama3:8b", size: 4661021901 }, // ~4.34 GB en bytes
-          { name: "phi3:mini", size: 2184010200 }  // ~2.03 GB en bytes
+          { name: "phi3:mini", size: 2362232012 } // ~2.20 GB
         ]
       })
     });
 
-    const catalogo = await getInstalledModels();
+    // Simulamos un hardware con un límite de 8 GB de VRAM efectivos
+    const availableVramGb = 8;
 
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:11434/api/tags");
-    expect(catalogo).toHaveLength(2);
+    const { installed, availableToDownload } = await getEligibleModelsCatalog(availableVramGb);
+
+    // 1. Validar instalados locales
+    expect(installed).toHaveLength(1);
+    expect(installed[0].name).toBe("phi3:mini");
+
+    // 2. Validar disponibles para descargar del Hub (Filtrados por hardware)
+    // Deberían aparecer modelos ligeros compatibles (ej: gemma2:9b, llama3:8b)
+    // Pero NUNCA debe aparecer 'phi3:mini' (ya está instalado) ni modelos gigantescos > 8 GB
+    const gemma2 = availableToDownload.find(m => m.name.startsWith("gemma2"));
+    const llama3 = availableToDownload.find(m => m.name.startsWith("llama3:8b"));
+    const deepseekLarge = availableToDownload.find(m => m.name.includes("70b"));
+
+    expect(gemma2).toBeDefined();
+    expect(llama3).toBeDefined();
+    expect(deepseekLarge).toBeUndefined(); // Fulminado del catálogo por exceder los 8 GB
     
-    // Verificamos que la conversión de bytes a GB sea exacta
-    expect(catalogo[0]).toEqual({ name: "llama3:8b", sizeGb: 4.34 });
-    expect(catalogo[1]).toEqual({ name: "phi3:mini", sizeGb: 2.03 });
-  });
-
-  it("debe devolver un catálogo vacío si el demonio de Ollama está caído o responde con error", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("Fetch failed (Connection refused)"));
-
-    const catalogo = await getInstalledModels();
-
-    expect(catalogo).toEqual([]);
+    // Comprobar que no hay duplicación
+    const duplicadoLocalEnHub = availableToDownload.find(m => m.name === "phi3:mini");
+    expect(duplicadoLocalEnHub).toBeUndefined();
   });
 });
