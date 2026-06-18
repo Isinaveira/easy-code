@@ -1,24 +1,5 @@
-export type AgentProfile =
-  | 'gentle-orchestrator'
-  | 'phase-init'
-  | 'phase-explore'
-  | 'phase-propose'
-  | 'phase-spec'
-  | 'phase-design'
-  | 'phase-tasks'
-  | 'phase-apply'
-  | 'phase-verify'
-  | 'phase-archive'
-  | 'phase-onboard'
-  | 'consensus-judge-a'
-  | 'consensus-judge-b'
-  | 'consensus-fixer';
-
-export interface ModelRequirements {
-  minContextWindow: number;
-  requiredCapabilities: string[];
-  priorityMetric: 'reasoning' | 'coding' | 'speed';
-}
+// src/agents/selector.ts
+import { AgentProfile, ModelRequirements, CognitiveModelItem, SelectModelOptions } from './types.js';
 
 export const AGENT_REQUIREMENTS_MAP: Record<AgentProfile, ModelRequirements> = {
   'gentle-orchestrator': { minContextWindow: 8192, requiredCapabilities: ['tool-calling', 'reasoning'], priorityMetric: 'reasoning' },
@@ -37,33 +18,15 @@ export const AGENT_REQUIREMENTS_MAP: Record<AgentProfile, ModelRequirements> = {
   'consensus-fixer': { minContextWindow: 16384, requiredCapabilities: ['tool-calling'], priorityMetric: 'coding' }
 };
 
-export interface ModelMarketItem {
-  name: string;
-  sizeGb: number;
-  contextWindow: number;
-  capabilities: string[];
-  metrics: {
-    reasoning: number;
-    coding: number;
-    speed: number;
-  };
-}
-
-export interface SelectModelOptions {
-  agentProfile: AgentProfile;
-  catalogo: ModelMarketItem[];
-  availableVramGb: number;
-}
-
 /**
- * Selecciona el modelo óptimo para una fase del ciclo basándose en 
- * restricciones físicas de hardware y prioridades cognitivas del rol.
+ * Selects the optimal model for an agent profile based on hardware limitations
+ * and specific cognitive capabilities required by its role.
  */
-export function selectBestModelForAgent(options: SelectModelOptions): ModelMarketItem {
+export function selectBestModelForAgent(options: SelectModelOptions): CognitiveModelItem {
   const { agentProfile, catalogo, availableVramGb } = options;
   const reqs = AGENT_REQUIREMENTS_MAP[agentProfile];
 
-  const modelosValidos = catalogo.filter((model) => {
+  const validModels = catalogo.filter((model) => {
     if (model.sizeGb > availableVramGb) return false;
     if (model.contextWindow < reqs.minContextWindow) return false;
     
@@ -72,9 +35,9 @@ export function selectBestModelForAgent(options: SelectModelOptions): ModelMarke
     );
   });
 
-  if (modelosValidos.length === 0) {
+  if (validModels.length === 0) {
     throw new Error(`Ningún modelo del catálogo satisface los requisitos de: ${agentProfile}`);
   }
 
-  return modelosValidos.sort((a, b) => b.metrics[reqs.priorityMetric] - a.metrics[reqs.priorityMetric])[0];
+  return validModels.sort((a, b) => b.metrics[reqs.priorityMetric] - a.metrics[reqs.priorityMetric])[0];
 }
