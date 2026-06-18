@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { execa } from "execa";
 import { checkDependency, main, getTailscaleIP } from "./installer.js";
-import { saveEnvironment, EnvConfig } from "../environment/env.js";
 import { select, text, multiselect } from "@clack/prompts";
+import { detectAvailableHardwareVram } from "../utils/hardware/detector.js";
 import fs from "fs/promises";
 
 
 vi.mock("execa");
 vi.mock("fs/promises");
+vi.mock("../utils/hardware/detector.js", () => ({
+  detectAvailableHardwareVram: vi.fn() 
+}));
 vi.mock("@clack/prompts", () => ({
   intro: vi.fn(),
   outro: vi.fn(),
@@ -29,6 +32,7 @@ beforeEach(() => {
   vi.mocked(text).mockResolvedValue("default-node");
   vi.mocked(select).mockResolvedValue("worker");
   vi.mocked(multiselect).mockResolvedValue(["phase-init"]);
+  vi.mocked(detectAvailableHardwareVram).mockResolvedValue(8); 
 });
 
 
@@ -78,27 +82,27 @@ describe("main flow", () => {
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it("debe solicitar nombre, rol y agentes del nodo y escribir la topología completa en el .env", async () => {
-  vi.mocked(execa).mockImplementation((command) => {
-    if (command === "tailscale") return Promise.reject(new Error("Not active"));
-    return Promise.resolve({ stdout: "v1.0.0" }) as any;
+  it("debe solicitar nombre, rol y agentes del nodo y escribir la topología con la VRAM en el .env", async () => {
+    vi.mocked(execa).mockImplementation((command) => {
+      if (command === "tailscale") return Promise.reject(new Error("Not active"));
+      return Promise.resolve({ stdout: "v1.0.0" }) as any;
+    });
+
+    vi.mocked(text).mockResolvedValue("master-node-01");
+    vi.mocked(select).mockResolvedValue("master");
+    vi.mocked(multiselect).mockResolvedValue(["phase-init", "phase-explore"]);
+    vi.mocked(detectAvailableHardwareVram).mockResolvedValue(12); // ◄ Forzamos 12GB en este test
+
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+
+    await main();
+
+    // ◄ Exigimos que el .env guarde también la VRAM detectada por la factoría
+    const expectedEnvContent = "NODE_NAME=master-node-01\nNODE_ROLE=master\nACTIVE_AGENTS=phase-init,phase-explore\nAVAILABLE_VRAM=12\n";
+    expect(fs.writeFile).toHaveBeenCalledWith(".env", expectedEnvContent);
+
+    exitSpy.mockRestore();
   });
-
-  // Configuramos las respuestas de Clack usando los mocks globales
-  vi.mocked(text).mockResolvedValue("master-node-01");
-  vi.mocked(select).mockResolvedValue("master");
-  vi.mocked(multiselect).mockResolvedValue(["phase-init", "phase-explore"]);
-
-  const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
-
-  await main();
-
-  // Ahora sí, esperamos la estructura de la topología distribuida
-  const expectedEnvContent = "NODE_NAME=master-node-01\nNODE_ROLE=master\nACTIVE_AGENTS=phase-init,phase-explore\n";
-  expect(fs.writeFile).toHaveBeenCalledWith(".env", expectedEnvContent);
-
-  exitSpy.mockRestore();
-});
 });
 
 describe("getTailscaleIP", () => {

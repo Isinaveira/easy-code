@@ -3,6 +3,7 @@ import { execa } from 'execa';
 import picocolors from 'picocolors';
 import { saveEnvironment, EnvConfig } from '../environment/env.js';
 import { generateNodeTopologyConfig } from '../utils/hardware/hardware.js'; // ◄ Importamos tu topología
+import { detectAvailableHardwareVram } from '../utils/hardware/detector.js';
 
 export async function checkDependency(command: string, args: string[] = ['--version']): Promise<boolean> {
   try {
@@ -47,7 +48,6 @@ export async function getTailscaleIP(): Promise<string | null> {
 async function configureNode(): Promise<void> {
   outro(picocolors.blue("🌐 Configuración del Nodo."));
 
-  // 1. Capturar el nombre personalizado del nodo
   const nodeName = await text({
     message: '¿Qué nombre deseas asignarle a este nodo?',
     placeholder: 'master-node-01',
@@ -100,6 +100,11 @@ async function configureNode(): Promise<void> {
     process.exit(0);
   }
 
+  const hardwareSpinner = spinner();
+  hardwareSpinner.start('Interrogando al sistema operativo para calcular recursos...');
+  const detectedVram = await detectAvailableHardwareVram();
+  hardwareSpinner.stop(picocolors.green(`Análisis completado: ${detectedVram} GB de memoria asignados al clúster.`));
+
   const ip = await getTailscaleIP();
 
   // 4. Integrar con tu función centralizada de topología de hardware
@@ -112,6 +117,7 @@ async function configureNode(): Promise<void> {
   // Unificamos todo el objeto final de configuración del entorno
   const config: EnvConfig = {
     ...topology,
+    AVAILABLE_VRAM: detectedVram.toString(), // Guardamos el límite elástico real
     ...(ip && { TAILSCALE_IP: ip })
   };
   
