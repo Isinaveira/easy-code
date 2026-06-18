@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { execa } from "execa";
 import { checkDependency, main, getTailscaleIP, NodeInstaller } from "./installer.js";
-import { select, text, multiselect } from "@clack/prompts";
+import { select, text, multiselect, note } from "@clack/prompts";
 import { HardwareDetector } from "../hardware/index.js";
 import { JsonPersistenceStore, EnvPersistenceWriter } from "../persistence/index.js";
 import fs from "fs/promises";
@@ -99,6 +99,7 @@ describe("NodeInstaller Unit Tests", () => {
     await installer.run();
 
     expect(mockDetector.detect).toHaveBeenCalled();
+    expect(note).toHaveBeenCalledWith(expect.any(String), "💻 Recursos del Sistema Detectados");
     expect(mockJsonStore.saveNodeState).toHaveBeenCalledWith({
       nodeName: "test-node",
       nodeRole: "worker",

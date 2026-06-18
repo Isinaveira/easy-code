@@ -152,6 +152,16 @@ export class NodeInstaller {
       ),
     );
 
+    note(
+      `${picocolors.cyan("• Sistema Operativo :")} ${hardwareProfile.os}\n` +
+      `${picocolors.cyan("• CPU                :")} ${hardwareProfile.cpu.model} (${hardwareProfile.cpu.cores} núcleos, ${hardwareProfile.cpu.architecture})\n` +
+      `${picocolors.cyan("• Memoria RAM        :")} ${hardwareProfile.memory.totalGb} GB\n` +
+      `${picocolors.cyan("• Acelerador         :")} ${hardwareProfile.accelerator.toUpperCase()}\n` +
+      `${picocolors.cyan("• GPU Detectada      :")} ${hardwareProfile.gpu ? `${hardwareProfile.gpu.model} (${hardwareProfile.gpu.vramGb} GB VRAM)` : "Ninguna (Modo CPU)"}`,
+      "💻 Recursos del Sistema Detectados"
+    );
+
+
     const ip = await getTailscaleIP();
 
     // 1. Guardar estado estructurado completo en JSON (la base de datos estructurada)
