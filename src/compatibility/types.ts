@@ -1,12 +1,14 @@
 // src/compatibility/types.ts
 import { HardwareProfile } from '../hardware/index.js';
+import type { Capability, OutputFormat } from '../agents/types.js';
 
 export interface ModelDescriptor {
   name: string;
   sizeGb: number;
   description?: string;
   contextWindow?: number;
-  capabilities?: string[];
+  capabilities?: Capability[];
+  supportedOutputFormats?: OutputFormat[];
 }
 
 export interface CompatibilityResult {

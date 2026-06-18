@@ -1,6 +1,10 @@
 // src/agents/types.ts
 import { ModelDescriptor } from '../compatibility/types.js';
 
+export type Capability = 'reasoning' | 'coding' | 'tool-calling' | 'json-mode' | 'vision';
+
+export type OutputFormat = 'markdown' | 'json' | 'code' | 'text';
+
 export type AgentProfile =
   | 'agentic-orchestrator'
   | 'phase-init'
@@ -19,13 +23,15 @@ export type AgentProfile =
 
 export interface ModelRequirements {
   minContextWindow: number;
-  requiredCapabilities: string[];
+  requiredCapabilities: Capability[];
+  outputFormats: OutputFormat[];
   priorityMetric: 'reasoning' | 'coding' | 'speed';
 }
 
 export interface CognitiveModelItem extends ModelDescriptor {
   contextWindow: number;
-  capabilities: string[];
+  capabilities: Capability[];
+  supportedOutputFormats: OutputFormat[];
   metrics: {
     reasoning: number;
     coding: number;

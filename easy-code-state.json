@@ -1,0 +1,32 @@
+{
+  "nodeName": "master-node-01",
+  "nodeRole": "master",
+  "activeAgents": [
+    "agentic-orchestrator",
+    "phase-spec",
+    "phase-init",
+    "phase-explore",
+    "phase-tasks",
+    "phase-design",
+    "consensus-judge-a",
+    "consensus-judge-b",
+    "consensus-fixer"
+  ],
+  "hardwareProfile": {
+    "os": "win32",
+    "cpu": {
+      "cores": 24,
+      "model": "AMD Ryzen 9 5900X 12-Core Processor            ",
+      "architecture": "x64"
+    },
+    "gpu": {
+      "vendor": "nvidia",
+      "model": "Nvidia GPU",
+      "vramGb": 15
+    },
+    "memory": {
+      "totalGb": 31
+    },
+    "accelerator": "cuda"
+  }
+}

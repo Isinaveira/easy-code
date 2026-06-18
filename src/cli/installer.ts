@@ -178,14 +178,16 @@ export class NodeInstaller {
           availableVramGb: detectedVram
         });
         const reqs = AGENT_REQUIREMENTS_MAP[agent as AgentProfile];
-        const minCaps = reqs.requiredCapabilities.length > 0 ? reqs.requiredCapabilities.join(', ') : 'Ninguna';
+        const minCaps = reqs.requiredCapabilities.length > 0 ? reqs.requiredCapabilities.join(', ') : 'None';
+        const outFmts = reqs.outputFormats.length > 0 ? reqs.outputFormats.join(', ') : 'Any';
         
         modelRecommendations.push(
           `${picocolors.bold(picocolors.yellow(`🤖 ${agent}`))}\n` +
-          `  • ${picocolors.green("Recomendado    :")} ${bestModel.name}\n` +
-          `  • ${picocolors.cyan("Contexto Mín.  :")} ${reqs.minContextWindow} tokens\n` +
-          `  • ${picocolors.cyan("Habilidades Mín:")} ${minCaps}\n` +
-          `  • ${picocolors.cyan("Métrica Prior. :")} ${reqs.priorityMetric.toUpperCase()}`
+          `  • ${picocolors.green("Recommended    :")} ${bestModel.name}\n` +
+          `  • ${picocolors.cyan("Min. Context   :")} ${reqs.minContextWindow} tokens\n` +
+          `  • ${picocolors.cyan("Min. Skills    :")} ${minCaps}\n` +
+          `  • ${picocolors.cyan("Output Formats :")} ${outFmts}\n` +
+          `  • ${picocolors.cyan("Priority Metric:")} ${reqs.priorityMetric.toUpperCase()}`
         );
       } catch (err: any) {
         modelRecommendations.push(
