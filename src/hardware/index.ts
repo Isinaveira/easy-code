@@ -1,6 +1,7 @@
 // src/hardware/index.ts
 
 export * from './types.js';
-export { buildHardwareProfile, BuildProfileOptions } from './profile.js';
-export { HardwareDetector, DetectorStrategies } from './detector.js';
+export { buildHardwareProfile, type BuildProfileOptions } from './profile.js';
+export { HardwareDetector, type DetectorStrategies } from './detector.js';
+
 
