@@ -1,3 +1,4 @@
+// src/cli/installer.ts
 import {
   intro,
   outro,
@@ -7,12 +8,11 @@ import {
   isCancel,
   text,
   multiselect,
-} from "@clack/prompts"; // ◄ Añadidos text y multiselect
+} from "@clack/prompts";
 import { execa } from "execa";
 import picocolors from "picocolors";
-import { saveEnvironment, EnvConfig } from "../environment/env.js";
-import { generateNodeTopologyConfig } from "../utils/hardware/hardware.js"; // ◄ Importamos tu topología
-import { detectAvailableHardwareVram } from "../utils/hardware/detector.js";
+import { HardwareDetector } from "../hardware/index.js";
+import { JsonPersistenceStore, EnvPersistenceWriter, PersistenceStore, EnvironmentWriter } from "../persistence/index.js";
 
 export async function checkDependency(
   command: string,
@@ -63,108 +63,142 @@ export async function getTailscaleIP(): Promise<string | null> {
   }
 }
 
-async function configureNode(): Promise<void> {
-  outro(picocolors.blue("🌐 Configuración del Nodo."));
+export class NodeInstaller {
+  private detector: HardwareDetector;
+  private jsonStore: PersistenceStore;
+  private envWriter: EnvironmentWriter;
 
-  const nodeName = await text({
-    message: "¿Qué nombre deseas asignarle a este nodo?",
-    placeholder: "master-node-01",
-    defaultValue: "master-node-01",
-  });
-
-  if (isCancel(nodeName)) {
-    outro(picocolors.yellow("Configuración cancelada por el usuario."));
-    process.exit(0);
+  constructor(
+    detector: HardwareDetector,
+    jsonStore: PersistenceStore,
+    envWriter: EnvironmentWriter
+  ) {
+    this.detector = detector;
+    this.jsonStore = jsonStore;
+    this.envWriter = envWriter;
   }
 
-  // 2. Capturar el rol del nodo
-  const role = await select({
-    message: "Selecciona el rol de este nodo:",
-    options: [
-      { value: "master", label: "Master" },
-      { value: "worker", label: "Worker" },
-    ],
-  });
+  async run(): Promise<void> {
+    outro(picocolors.blue("🌐 Configuración del Nodo."));
 
-  if (isCancel(role)) {
-    outro(picocolors.yellow("Configuración cancelada por el usuario."));
-    process.exit(0);
-  }
+    const nodeNameInput = await text({
+      message: "¿Qué nombre deseas asignarle a este nodo?",
+      placeholder: "master-node-01",
+      defaultValue: "master-node-01",
+    });
 
-  // 3. Seleccionar los agentes activos para este nodo específico
-  const selectedAgents = await multiselect({
-    message: `Selecciona los agentes que se ejecutarán en este nodo: ${picocolors.dim("(Usa [Espacio] para marcar y [Enter] para confirmar)")}`,
-    options: [
-      { value: "gentle-orchestrator", label: "gentle-orchestrator (Coordinador)" },
-      { value: "phase-init", label: "phase-init" },
-      { value: "phase-explore", label: "phase-explore" },
-      { value: "phase-propose", label: "phase-propose" },
-      { value: "phase-spec", label: "phase-spec" },
-      { value: "phase-design", label: "phase-design" },
-      { value: "phase-tasks", label: "phase-tasks" },
-      { value: "phase-apply", label: "phase-apply" },
-      { value: "phase-verify", label: "phase-verify" },
-      { value: "phase-archive", label: "phase-archive" },
-      { value: "phase-onboard", label: "phase-onboard" },
-      { value: "consensus-judge-a", label: "consensus-judge-a" },
-      { value: "consensus-judge-b", label: "consensus-judge-b" },
-      { value: "consensus-fixer", label: "consensus-fixer" },
-    ],
-    required: true,
-  });
+    if (isCancel(nodeNameInput)) {
+      outro(picocolors.yellow("Configuración cancelada por el usuario."));
+      process.exit(0);
+    }
 
-  if (isCancel(selectedAgents)) {
-    outro(picocolors.yellow("Configuración cancelada por el usuario."));
-    process.exit(0);
-  }
+    const nodeName = nodeNameInput as string;
 
-  const hardwareSpinner = spinner();
-  hardwareSpinner.start(
-    "Interrogando al sistema operativo para calcular recursos...",
-  );
-  const detectedVram = await detectAvailableHardwareVram();
-  hardwareSpinner.stop(
-    picocolors.green(
-      `Análisis completado: ${detectedVram} GB de memoria asignados al clúster.`,
-    ),
-  );
+    const roleInput = await select({
+      message: "Selecciona el rol de este nodo:",
+      options: [
+        { value: "master", label: "Master" },
+        { value: "worker", label: "Worker" },
+      ],
+    });
 
-  const ip = await getTailscaleIP();
+    if (isCancel(roleInput)) {
+      outro(picocolors.yellow("Configuración cancelada por el usuario."));
+      process.exit(0);
+    }
 
-  // 4. Integrar con tu función centralizada de topología de hardware
-  const topology = generateNodeTopologyConfig({
-    nodeName: nodeName as string,
-    nodeRole: role as string,
-    selectedAgents: selectedAgents as string[],
-  });
+    const role = roleInput as string;
 
-  // Unificamos todo el objeto final de configuración del entorno
-  const config: EnvConfig = {
-    ...topology,
-    AVAILABLE_VRAM: detectedVram.toString(), // Guardamos el límite elástico real
-    ...(ip && { TAILSCALE_IP: ip }),
-  };
+    const selectedAgentsInput = await multiselect({
+      message: `Selecciona los agentes que se ejecutarán en este nodo: ${picocolors.dim("(Usa [Espacio] para marcar y [Enter] para confirmar)")}`,
+      options: [
+        { value: "gentle-orchestrator", label: "gentle-orchestrator (Coordinador)" },
+        { value: "phase-init", label: "phase-init" },
+        { value: "phase-explore", label: "phase-explore" },
+        { value: "phase-propose", label: "phase-propose" },
+        { value: "phase-spec", label: "phase-spec" },
+        { value: "phase-design", label: "phase-design" },
+        { value: "phase-tasks", label: "phase-tasks" },
+        { value: "phase-apply", label: "phase-apply" },
+        { value: "phase-verify", label: "phase-verify" },
+        { value: "phase-archive", label: "phase-archive" },
+        { value: "phase-onboard", label: "phase-onboard" },
+        { value: "consensus-judge-a", label: "consensus-judge-a" },
+        { value: "consensus-judge-b", label: "consensus-judge-b" },
+        { value: "consensus-fixer", label: "consensus-fixer" },
+      ],
+      required: true,
+    });
 
-  await saveEnvironment(config);
+    if (isCancel(selectedAgentsInput)) {
+      outro(picocolors.yellow("Configuración cancelada por el usuario."));
+      process.exit(0);
+    }
 
-  if (!ip) {
-    note(
-      picocolors.yellow(
-        "No se ha detectado una IP activa de Tailscale.\n" +
-          "easy-code funcionará en modo local. Recuerda activar Tailscale si vas a enlazar múltiples nodos.",
-      ),
-      "⚠️ Aviso de Red",
+    const selectedAgents = selectedAgentsInput as string[];
+
+    const hardwareSpinner = spinner();
+    hardwareSpinner.start(
+      "Interrogando al sistema operativo para calcular recursos...",
     );
-  }
+    
+    // Usamos el detector de hardware DIP que devuelve un perfil de hardware completo.
+    const hardwareProfile = await this.detector.detect();
+    const detectedVram = hardwareProfile.gpu ? hardwareProfile.gpu.vramGb : hardwareProfile.memory.totalGb;
 
-  outro(picocolors.blue("✔ Configuración del nodo completada."));
+    hardwareSpinner.stop(
+      picocolors.green(
+        `Análisis completado: ${detectedVram} GB de memoria asignados al clúster.`,
+      ),
+    );
+
+    const ip = await getTailscaleIP();
+
+    // 1. Guardar estado estructurado completo en JSON (la base de datos estructurada)
+    await this.jsonStore.saveNodeState({
+      nodeName,
+      nodeRole: role,
+      activeAgents: selectedAgents,
+      hardwareProfile
+    });
+
+    // 2. Guardar la configuración del entorno en el .env tradicional
+    const envConfig: Record<string, string> = {
+      NODE_NAME: nodeName,
+      NODE_ROLE: role,
+      ACTIVE_AGENTS: selectedAgents.join(','),
+      AVAILABLE_VRAM: detectedVram.toString(),
+      ...(ip && { TAILSCALE_IP: ip }),
+    };
+
+    await this.envWriter.saveEnv(envConfig);
+
+    if (!ip) {
+      note(
+        picocolors.yellow(
+          "No se ha detectado una IP activa de Tailscale.\n" +
+            "easy-code funcionará en modo local. Recuerda activar Tailscale si vas a enlazar múltiples nodos.",
+        ),
+        "⚠️ Aviso de Red",
+      );
+    }
+
+    outro(picocolors.blue("✔ Configuración del nodo completada."));
+  }
 }
 
 export async function main() {
   intro(picocolors.cyan("⚙️ CONFIGURACIÓN DE EASY-CODE ⚙️"));
 
   await verifySystemDependencies();
-  await configureNode();
+
+  // Componemos el grafo de dependencias en el Composition Root (main)
+  const detector = HardwareDetector.createDefault();
+  const jsonStore = new JsonPersistenceStore();
+  const envWriter = new EnvPersistenceWriter();
+
+  const installer = new NodeInstaller(detector, jsonStore, envWriter);
+  await installer.run();
 
   outro(
     picocolors.green(
