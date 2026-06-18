@@ -1,7 +1,7 @@
 // src/agents/selector.test.ts
 import { describe, expect, it } from 'vitest';
-import { selectBestModelForAgent, enrichModelDescriptor, AGENT_REQUIREMENTS_MAP } from './selector.js';
-import type { CognitiveModelItem, Capability, OutputFormat } from './types.js';
+import { selectBestModelForAgent, enrichModelDescriptor, AGENT_REQUIREMENTS_MAP, getSegmentedCatalogForAgent } from './selector.js';
+import type { CognitiveModelItem } from './types.js';
 
 describe('Intelligent Selector by Agent Profile', () => {
   const catalogoMercado: CognitiveModelItem[] = [
@@ -89,20 +89,16 @@ describe('Output Format Matching', () => {
       availableVramGb: 12.0
     });
 
-    // phase-spec requires json-mode capability and json output format
-    // json-specialist and all-rounder both qualify, json-specialist wins on reasoning
     expect(model.name).toBe('json-specialist:7b');
   });
 
   it('should accept models when agent has no output format requirements', () => {
-    // phase-init has no specific output format requirements beyond 'text'
     const model = selectBestModelForAgent({
       agentProfile: 'phase-init',
       catalogo: catalogWithFormats,
       availableVramGb: 12.0
     });
 
-    // All three models support 'text', speed priority → all-rounder wins
     expect(model.name).toBe('all-rounder:7b');
   });
 
@@ -118,7 +114,6 @@ describe('Output Format Matching', () => {
       }
     ];
 
-    // phase-spec requires json output format, text-only doesn't support it
     expect(() => {
       selectBestModelForAgent({
         agentProfile: 'phase-spec',
@@ -177,5 +172,106 @@ describe('enrichModelDescriptor', () => {
     expect(enriched.name).toBe('llama3:8b');
     expect(enriched.sizeGb).toBe(5.0);
     expect(enriched.description).toBe('Test model');
+  });
+});
+
+describe('getSegmentedCatalogForAgent', () => {
+  const mixedCatalog: CognitiveModelItem[] = [
+    {
+      name: "perfect-match:7b",
+      sizeGb: 4.5,
+      contextWindow: 16384,
+      capabilities: ['tool-calling', 'reasoning'],
+      supportedOutputFormats: ['json', 'text', 'markdown'],
+      metrics: { reasoning: 90, coding: 80, speed: 70 }
+    },
+    {
+      name: "also-good:13b",
+      sizeGb: 8.0,
+      contextWindow: 32768,
+      capabilities: ['tool-calling', 'reasoning'],
+      supportedOutputFormats: ['json', 'text', 'code', 'markdown'],
+      metrics: { reasoning: 85, coding: 85, speed: 60 }
+    },
+    {
+      name: "fits-vram-only:7b",
+      sizeGb: 4.0,
+      contextWindow: 4096,
+      capabilities: [],
+      supportedOutputFormats: ['text'],
+      metrics: { reasoning: 50, coding: 50, speed: 90 }
+    },
+    {
+      name: "too-big:70b",
+      sizeGb: 40.0,
+      contextWindow: 128000,
+      capabilities: ['tool-calling', 'reasoning', 'json-mode', 'coding'],
+      supportedOutputFormats: ['json', 'text', 'code', 'markdown'],
+      metrics: { reasoning: 95, coding: 95, speed: 30 }
+    }
+  ];
+
+  it('should place fully qualifying models in recommended, sorted by priority metric', () => {
+    const result = getSegmentedCatalogForAgent('agentic-orchestrator', mixedCatalog, 12.0);
+
+    expect(result.recommended).toHaveLength(2);
+    expect(result.recommended[0].name).toBe('perfect-match:7b');
+    expect(result.recommended[1].name).toBe('also-good:13b');
+  });
+
+  it('should place VRAM-only qualifying models in fallback', () => {
+    const result = getSegmentedCatalogForAgent('agentic-orchestrator', mixedCatalog, 12.0);
+
+    expect(result.fallback).toHaveLength(1);
+    expect(result.fallback[0].name).toBe('fits-vram-only:7b');
+  });
+
+  it('should exclude models that exceed available VRAM from both lists', () => {
+    const result = getSegmentedCatalogForAgent('agentic-orchestrator', mixedCatalog, 12.0);
+
+    const allNames = [...result.recommended, ...result.fallback].map(m => m.name);
+    expect(allNames).not.toContain('too-big:70b');
+  });
+
+  it('should return empty arrays when no model fits in VRAM', () => {
+    const result = getSegmentedCatalogForAgent('agentic-orchestrator', mixedCatalog, 1.0);
+
+    expect(result.recommended).toHaveLength(0);
+    expect(result.fallback).toHaveLength(0);
+  });
+
+  it('should not throw when both lists are empty', () => {
+    expect(() => {
+      getSegmentedCatalogForAgent('agentic-orchestrator', mixedCatalog, 1.0);
+    }).not.toThrow();
+  });
+
+  it('should sort fallback models by priority metric descending', () => {
+    const fallbackHeavyCatalog: CognitiveModelItem[] = [
+      {
+        name: "weak-but-fast:3b",
+        sizeGb: 2.0,
+        contextWindow: 2048,
+        capabilities: [],
+        supportedOutputFormats: ['text'],
+        metrics: { reasoning: 40, coding: 30, speed: 95 }
+      },
+      {
+        name: "weak-but-smart:3b",
+        sizeGb: 2.0,
+        contextWindow: 2048,
+        capabilities: [],
+        supportedOutputFormats: ['text'],
+        metrics: { reasoning: 60, coding: 40, speed: 70 }
+      }
+    ];
+
+    // agentic-orchestrator priorityMetric = 'reasoning'
+    const result = getSegmentedCatalogForAgent('agentic-orchestrator', fallbackHeavyCatalog, 12.0);
+
+    expect(result.recommended).toHaveLength(0);
+    expect(result.fallback).toHaveLength(2);
+    expect(result.fallback[0].name).toBe('weak-but-smart:3b');
+    expect(result.fallback[1].name).toBe('weak-but-fast:3b');
   });
 });

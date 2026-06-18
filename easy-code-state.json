@@ -3,11 +3,16 @@
   "nodeRole": "master",
   "activeAgents": [
     "agentic-orchestrator",
+    "phase-explore",
     "phase-spec",
     "phase-init",
-    "phase-explore",
-    "phase-tasks",
+    "phase-propose",
     "phase-design",
+    "phase-tasks",
+    "phase-apply",
+    "phase-verify",
+    "phase-archive",
+    "phase-onboard",
     "consensus-judge-a",
     "consensus-judge-b",
     "consensus-fixer"

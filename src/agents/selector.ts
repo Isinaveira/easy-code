@@ -85,36 +85,76 @@ export function enrichModelDescriptor(model: ModelDescriptor): CognitiveModelIte
 }
 
 /**
- * Selects the optimal model for an agent profile based on hardware limitations,
- * cognitive capabilities, and output format requirements.
+ * Checks whether a model passes all cognitive requirements for an agent profile.
+ * Does NOT check VRAM — that's a physical constraint handled separately.
+ */
+function meetsAllCognitiveRequirements(model: CognitiveModelItem, reqs: ModelRequirements): boolean {
+  if (model.contextWindow < reqs.minContextWindow) return false;
+
+  const hasCapabilities = reqs.requiredCapabilities.every((cap) =>
+    model.capabilities.includes(cap)
+  );
+  if (!hasCapabilities) return false;
+
+  if (reqs.outputFormats.length > 0) {
+    const hasFormats = reqs.outputFormats.every((fmt) =>
+      model.supportedOutputFormats.includes(fmt)
+    );
+    if (!hasFormats) return false;
+  }
+
+  return true;
+}
+
+export interface SegmentedCatalog {
+  recommended: CognitiveModelItem[];
+  fallback: CognitiveModelItem[];
+}
+
+/**
+ * Segments the catalog into recommended (full match) and fallback (VRAM-only match) lists
+ * for a given agent profile. Returns empty arrays instead of throwing when no models qualify.
+ */
+export function getSegmentedCatalogForAgent(
+  agentProfile: AgentProfile,
+  catalogo: CognitiveModelItem[],
+  availableVramGb: number
+): SegmentedCatalog {
+  const reqs = AGENT_REQUIREMENTS_MAP[agentProfile];
+  const recommended: CognitiveModelItem[] = [];
+  const fallback: CognitiveModelItem[] = [];
+
+  for (const model of catalogo) {
+    if (model.sizeGb > availableVramGb) continue;
+
+    if (meetsAllCognitiveRequirements(model, reqs)) {
+      recommended.push(model);
+    } else {
+      fallback.push(model);
+    }
+  }
+
+  const sortByPriority = (a: CognitiveModelItem, b: CognitiveModelItem) =>
+    b.metrics[reqs.priorityMetric] - a.metrics[reqs.priorityMetric];
+
+  recommended.sort(sortByPriority);
+  fallback.sort(sortByPriority);
+
+  return { recommended, fallback };
+}
+
+/**
+ * Selects the single optimal model for an agent profile.
+ * Throws if no model qualifies. For interactive selection, use getSegmentedCatalogForAgent instead.
  */
 export function selectBestModelForAgent(options: SelectModelOptions): CognitiveModelItem {
   const { agentProfile, catalogo, availableVramGb } = options;
-  const reqs = AGENT_REQUIREMENTS_MAP[agentProfile];
+  const { recommended } = getSegmentedCatalogForAgent(agentProfile, catalogo, availableVramGb);
 
-  const validModels = catalogo.filter((model) => {
-    if (model.sizeGb > availableVramGb) return false;
-    if (model.contextWindow < reqs.minContextWindow) return false;
-
-    const hasCapabilities = reqs.requiredCapabilities.every((cap) =>
-      model.capabilities.includes(cap)
-    );
-    if (!hasCapabilities) return false;
-
-    // Output format matching — strict filter when the agent requires specific formats
-    if (reqs.outputFormats.length > 0) {
-      const hasFormats = reqs.outputFormats.every((fmt) =>
-        model.supportedOutputFormats.includes(fmt)
-      );
-      if (!hasFormats) return false;
-    }
-
-    return true;
-  });
-
-  if (validModels.length === 0) {
+  if (recommended.length === 0) {
     throw new Error(`No model in the catalog satisfies the requirements for: ${agentProfile}`);
   }
 
-  return validModels.sort((a, b) => b.metrics[reqs.priorityMetric] - a.metrics[reqs.priorityMetric])[0];
+  return recommended[0];
 }
+

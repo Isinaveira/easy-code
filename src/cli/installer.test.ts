@@ -66,7 +66,10 @@ describe("NodeInstaller Unit Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(text).mockResolvedValue("test-node");
-    vi.mocked(select).mockResolvedValue("worker");
+    // First select call = role, subsequent calls = model selection per agent
+    vi.mocked(select)
+      .mockResolvedValueOnce("worker")
+      .mockResolvedValue("phi3:mini");
     vi.mocked(multiselect).mockResolvedValue(["phase-init"]);
   });
 
@@ -100,7 +103,8 @@ describe("NodeInstaller Unit Tests", () => {
 
     expect(mockDetector.detect).toHaveBeenCalled();
     expect(note).toHaveBeenCalledWith(expect.any(String), "💻 Recursos del Sistema Detectados");
-    expect(note).toHaveBeenCalledWith(expect.any(String), "🎯 Asignación Óptima de Modelos por Agente");
+    expect(note).toHaveBeenCalledWith(expect.any(String), expect.stringContaining("Requirements"));
+    expect(note).toHaveBeenCalledWith(expect.any(String), "🎯 Final Model Assignments");
     expect(mockJsonStore.saveNodeState).toHaveBeenCalledWith({
       nodeName: "test-node",
       nodeRole: "worker",
@@ -128,7 +132,10 @@ describe("main flow integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(text).mockResolvedValue("master-node-01");
-    vi.mocked(select).mockResolvedValue("master");
+    // First select = role, subsequent = model selections per agent
+    vi.mocked(select)
+      .mockResolvedValueOnce("master")
+      .mockResolvedValue("phi3:mini");
     vi.mocked(multiselect).mockResolvedValue(["phase-init", "phase-explore"]);
   });
 

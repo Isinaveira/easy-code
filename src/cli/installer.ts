@@ -14,7 +14,7 @@ import picocolors from "picocolors";
 import { HardwareDetector } from "../hardware/index.js";
 import { JsonPersistenceStore, EnvPersistenceWriter, PersistenceStore, EnvironmentWriter } from "../persistence/index.js";
 import { OllamaRegistry } from "../registry/index.js";
-import { selectBestModelForAgent, enrichModelDescriptor, AGENT_REQUIREMENTS_MAP, type AgentProfile } from "../agents/index.js";
+import { getSegmentedCatalogForAgent, enrichModelDescriptor, AGENT_REQUIREMENTS_MAP, type AgentProfile } from "../agents/index.js";
 
 
 export async function checkDependency(
@@ -164,43 +164,73 @@ export class NodeInstaller {
       "💻 Recursos del Sistema Detectados"
     );
 
-    // Asignación Cognitiva de Modelos a Agentes
+    // Cognitive Model Assignment per Agent
     const registry = new OllamaRegistry();
     const rawHubModels = await registry.listAvailable();
     const cognitiveCatalog = rawHubModels.map(enrichModelDescriptor);
 
-    const modelRecommendations: string[] = [];
+    const modelAssignments: Record<string, string> = {};
+
     for (const agent of selectedAgents) {
-      try {
-        const bestModel = selectBestModelForAgent({
-          agentProfile: agent as AgentProfile,
-          catalogo: cognitiveCatalog,
-          availableVramGb: detectedVram
-        });
-        const reqs = AGENT_REQUIREMENTS_MAP[agent as AgentProfile];
-        const minCaps = reqs.requiredCapabilities.length > 0 ? reqs.requiredCapabilities.join(', ') : 'None';
-        const outFmts = reqs.outputFormats.length > 0 ? reqs.outputFormats.join(', ') : 'Any';
-        
-        modelRecommendations.push(
-          `${picocolors.bold(picocolors.yellow(`🤖 ${agent}`))}\n` +
-          `  • ${picocolors.green("Recommended    :")} ${bestModel.name}\n` +
-          `  • ${picocolors.cyan("Min. Context   :")} ${reqs.minContextWindow} tokens\n` +
-          `  • ${picocolors.cyan("Min. Skills    :")} ${minCaps}\n` +
-          `  • ${picocolors.cyan("Output Formats :")} ${outFmts}\n` +
-          `  • ${picocolors.cyan("Priority Metric:")} ${reqs.priorityMetric.toUpperCase()}`
+      const reqs = AGENT_REQUIREMENTS_MAP[agent as AgentProfile];
+      const minCaps = reqs.requiredCapabilities.length > 0 ? reqs.requiredCapabilities.join(', ') : 'None';
+      const outFmts = reqs.outputFormats.length > 0 ? reqs.outputFormats.join(', ') : 'Any';
+
+      note(
+        `${picocolors.cyan("Min. Context   :")} ${reqs.minContextWindow} tokens\n` +
+        `${picocolors.cyan("Min. Skills    :")} ${minCaps}\n` +
+        `${picocolors.cyan("Output Formats :")} ${outFmts}\n` +
+        `${picocolors.cyan("Priority Metric:")} ${reqs.priorityMetric.toUpperCase()}`,
+        `🤖 ${agent} — Requirements`
+      );
+
+      const { recommended, fallback } = getSegmentedCatalogForAgent(
+        agent as AgentProfile,
+        cognitiveCatalog,
+        detectedVram
+      );
+
+      if (recommended.length === 0 && fallback.length === 0) {
+        note(
+          picocolors.red("No compatible models found. Insufficient hardware for this agent."),
+          "⚠️ Hardware Insufficient"
         );
-      } catch (err: any) {
-        modelRecommendations.push(
-          `${picocolors.bold(picocolors.red(`🤖 ${agent}`))}\n` +
-          `  • ${picocolors.red("⚠️ Sin compatibilidad:")} ${err.message}`
-        );
+        continue;
       }
+
+      const options = [
+        ...recommended.map((m) => ({
+          value: m.name,
+          label: `⭐ ${m.name}`,
+          hint: `${m.sizeGb}GB | ctx:${m.contextWindow} | ${reqs.priorityMetric}:${m.metrics[reqs.priorityMetric]}`
+        })),
+        ...fallback.map((m) => ({
+          value: m.name,
+          label: `⚠️ (Fallback - Limited performance) ${m.name}`,
+          hint: `${m.sizeGb}GB | ctx:${m.contextWindow} | ${reqs.priorityMetric}:${m.metrics[reqs.priorityMetric]}`
+        }))
+      ];
+
+      const selectedModel = await select({
+        message: `Select model for ${picocolors.bold(agent)}:`,
+        options
+      });
+
+      if (isCancel(selectedModel)) {
+        outro(picocolors.yellow("Configuration cancelled by user."));
+        process.exit(0);
+      }
+
+      modelAssignments[agent] = selectedModel as string;
     }
 
-    note(
-      modelRecommendations.join('\n\n'),
-      "🎯 Asignación Óptima de Modelos por Agente"
-    );
+    // Show final assignment summary
+    if (Object.keys(modelAssignments).length > 0) {
+      const summaryLines = Object.entries(modelAssignments).map(([agent, model]) =>
+        `${picocolors.bold(picocolors.yellow(`🤖 ${agent}`))} → ${picocolors.green(model)}`
+      );
+      note(summaryLines.join('\n'), "🎯 Final Model Assignments");
+    }
 
     const ip = await getTailscaleIP();
 
