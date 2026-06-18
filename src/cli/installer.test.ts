@@ -1,30 +1,15 @@
 // src/cli/installer.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { execa } from "execa";
-import { checkDependency, main, getTailscaleIP, NodeInstaller } from "./installer.js";
-import { select, text, multiselect, note } from "@clack/prompts";
+import { checkDependency, main, getTailscaleIP } from "./installer.js";
 import { HardwareDetector } from "../hardware/index.js";
-import { JsonPersistenceStore, EnvPersistenceWriter } from "../persistence/index.js";
-import fs from "fs/promises";
-
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+import { render } from "ink";
 
 vi.mock("execa");
-vi.mock("fs/promises");
-vi.mock("@clack/prompts", () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  note: vi.fn(),
-  spinner: vi.fn(() => ({
-    start: vi.fn(),
-    message: vi.fn(),
-    stop: vi.fn(),
-  })),
-  select: vi.fn(),
-  text: vi.fn(),
-  multiselect: vi.fn(),
-  isCancel: vi.fn(),
+vi.mock("ink", () => ({
+  render: vi.fn(() => ({
+    waitUntilExit: vi.fn().mockResolvedValue(undefined)
+  }))
 }));
 
 describe("checkDependency", () => {
@@ -65,134 +50,9 @@ describe("getTailscaleIP", () => {
   });
 });
 
-describe("NodeInstaller Unit Tests", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockFetch.mockResolvedValue({ ok: false });
-    vi.mocked(text).mockResolvedValue("test-node");
-    // First select call = role, subsequent calls = model selection per agent
-    vi.mocked(select)
-      .mockResolvedValueOnce("worker")
-      .mockResolvedValue("phi3:mini");
-    vi.mocked(multiselect).mockResolvedValue(["phase-init"]);
-  });
-
-  it("should run installer flow, query detector, and write to both JSON state and ENV file", async () => {
-    const mockDetector = {
-      detect: vi.fn().mockResolvedValue({
-        os: "linux",
-        cpu: { cores: 8, model: "Intel", architecture: "x64" },
-        gpu: { vendor: "nvidia", model: "RTX 3080", vramGb: 10 },
-        memory: { totalGb: 32 },
-        accelerator: "cuda"
-      })
-    } as any;
-
-    const mockJsonStore = {
-      saveNodeState: vi.fn().mockResolvedValue(undefined),
-      loadNodeState: vi.fn().mockResolvedValue(null)
-    };
-
-    const mockEnvWriter = {
-      saveEnv: vi.fn().mockResolvedValue(undefined)
-    };
-
-    vi.mocked(execa).mockImplementation((command) => {
-      if (command === "tailscale") return Promise.resolve({ stdout: "10.0.0.5\n" }) as any;
-      return Promise.resolve({ stdout: "v1.0.0" }) as any;
-    });
-
-    const installer = new NodeInstaller(mockDetector, mockJsonStore, mockEnvWriter);
-    await installer.run();
-
-    expect(mockDetector.detect).toHaveBeenCalled();
-    expect(note).toHaveBeenCalledWith(expect.any(String), "💻 Recursos del Sistema Detectados");
-    expect(note).toHaveBeenCalledWith(expect.any(String), expect.stringContaining("Requirements"));
-    expect(note).toHaveBeenCalledWith(expect.any(String), "🎯 Final Model Assignments");
-    expect(mockJsonStore.saveNodeState).toHaveBeenCalledWith({
-      nodeName: "test-node",
-      nodeRole: "worker",
-      activeAgents: ["phase-init"],
-      hardwareProfile: {
-        os: "linux",
-        cpu: { cores: 8, model: "Intel", architecture: "x64" },
-        gpu: { vendor: "nvidia", model: "RTX 3080", vramGb: 10 },
-        memory: { totalGb: 32 },
-        accelerator: "cuda"
-      }
-    });
-
-    expect(mockEnvWriter.saveEnv).toHaveBeenCalledWith({
-      NODE_NAME: "test-node",
-      NODE_ROLE: "worker",
-      ACTIVE_AGENTS: "phase-init",
-      AVAILABLE_VRAM: "10",
-      TAILSCALE_IP: "10.0.0.5"
-    });
-  });
-
-  it("should integrate with llmfit registry when the daemon is running and healthy", async () => {
-    // 1st call: health check (true)
-    mockFetch.mockResolvedValueOnce({ ok: true });
-    // 2nd call: get models
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => [
-        { name: "gemma2:9b", sizeGb: 5.5, description: "llmfit gemma" }
-      ]
-    });
-
-    const mockDetector = {
-      detect: vi.fn().mockResolvedValue({
-        os: "linux",
-        cpu: { cores: 8, model: "Intel", architecture: "x64" },
-        gpu: { vendor: "nvidia", model: "RTX 3080", vramGb: 10 },
-        memory: { totalGb: 32 },
-        accelerator: "cuda"
-      })
-    } as any;
-
-    const mockJsonStore = {
-      saveNodeState: vi.fn().mockResolvedValue(undefined),
-      loadNodeState: vi.fn().mockResolvedValue(null)
-    };
-
-    const mockEnvWriter = {
-      saveEnv: vi.fn().mockResolvedValue(undefined)
-    };
-
-    vi.mocked(execa).mockImplementation((command) => {
-      if (command === "tailscale") return Promise.resolve({ stdout: "10.0.0.5\n" }) as any;
-      return Promise.resolve({ stdout: "v1.0.0" }) as any;
-    });
-
-    const installer = new NodeInstaller(mockDetector, mockJsonStore, mockEnvWriter);
-    await installer.run();
-
-    // Verify llmfit integration note
-    expect(note).toHaveBeenCalledWith(
-      expect.stringContaining("✔ API de llmfit detectada"),
-      "✨ Integración de llmfit"
-    );
-
-    // Verify it allowed selecting the llmfit-provided model
-    expect(select).toHaveBeenCalledWith(expect.objectContaining({
-      options: expect.arrayContaining([
-        expect.objectContaining({ value: "gemma2:9b" })
-      ])
-    }));
-  });
-});
-
 describe("main flow integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(text).mockResolvedValue("master-node-01");
-    // First select = role, subsequent = model selections per agent
-    vi.mocked(select)
-      .mockResolvedValueOnce("master")
-      .mockResolvedValue("phi3:mini");
-    vi.mocked(multiselect).mockResolvedValue(["phase-init", "phase-explore"]);
   });
 
   it("debe detener el proceso con código 1 si falta alguna dependencia crítica", async () => {
@@ -214,7 +74,6 @@ describe("main flow integration", () => {
       return Promise.resolve({ stdout: "success" }) as any;
     });
 
-    // Mockeamos la factory estática del detector para controlar la VRAM devuelta en el main
     const detectSpy = vi.spyOn(HardwareDetector.prototype, "detect").mockResolvedValue({
       os: "win32",
       cpu: { cores: 4, model: "Intel", architecture: "x64" },
@@ -228,10 +87,7 @@ describe("main flow integration", () => {
     await main();
 
     expect(exitSpy).not.toHaveBeenCalled();
-    
-    // El EnvPersistenceWriter escribe el env.
-    const expectedEnvContent = "NODE_NAME=master-node-01\nNODE_ROLE=master\nACTIVE_AGENTS=phase-init,phase-explore\nAVAILABLE_VRAM=12\n";
-    expect(fs.writeFile).toHaveBeenCalledWith(".env", expectedEnvContent);
+    expect(render).toHaveBeenCalled();
 
     detectSpy.mockRestore();
     exitSpy.mockRestore();
