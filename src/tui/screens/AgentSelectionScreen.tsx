@@ -22,6 +22,15 @@ const ALL_AGENTS: AgentProfile[] = [
   'consensus-fixer'
 ];
 
+function formatModelName(name: string, maxLen: number = 32): string {
+  if (name.length <= maxLen) {
+    return name.padEnd(maxLen);
+  }
+  const leftChars = Math.floor((maxLen - 3) / 2);
+  const rightChars = maxLen - 3 - leftChars;
+  return name.slice(0, leftChars) + '...' + name.slice(-rightChars);
+}
+
 export const AgentSelectionScreen: React.FC = () => {
   const { state, dispatch } = useAppState();
   
@@ -147,6 +156,8 @@ export const AgentSelectionScreen: React.FC = () => {
     const hasMoreAbove = modelScrollOffset > 0;
     const hasMoreBelow = modelScrollOffset + visibleCount < models.length;
 
+    const header = `     ${'MODELO'.padEnd(35)}   ${'SCORE'.padStart(5)}   ${'CASO DE USO'.padEnd(16)}   ${'TAMAÑO'.padStart(8)}`;
+
     return (
       <Box flexDirection="column" borderStyle="single" borderColor="magenta" padding={1}>
         <Text color={theme.colors.secondary} bold>
@@ -167,6 +178,13 @@ export const AgentSelectionScreen: React.FC = () => {
           </Box>
         ) : (
           <Box flexDirection="column">
+            {/* Table Header */}
+            <Box marginBottom={1}>
+              <Text color={theme.colors.gray} bold>
+                {header}
+              </Text>
+            </Box>
+
             {hasMoreAbove && (
               <Box paddingLeft={4}>
                 <Text color={theme.colors.primary}>▲ ({modelScrollOffset} más arriba)</Text>
@@ -179,17 +197,22 @@ export const AgentSelectionScreen: React.FC = () => {
               const mScore = m.score || m.metrics[reqs.priorityMetric] || 50;
               const mUse = m.use || 'general';
 
+              const nameStr = formatModelName(m.name, 35);
+              const scoreStr = mScore.toFixed(1).padStart(5);
+              const useStr = mUse.toUpperCase().slice(0, 16).padEnd(16);
+              const sizeStr = `${m.sizeGb.toFixed(1)} GB`.padStart(8);
+
               return (
                 <Box key={m.name} paddingLeft={isSelected ? 2 : 4} flexDirection="row">
                   {isSelected ? (
                     <Text color={theme.colors.primary} bold>
-                      {theme.icons.selector} {m.name}
+                      {theme.icons.selector} {nameStr}
                     </Text>
                   ) : (
-                    <Text color={theme.colors.white}>{m.name}</Text>
+                    <Text color={theme.colors.white}>{nameStr}</Text>
                   )}
-                  <Text color={theme.colors.gray}>
-                    {' '}(Score: {mScore} | {mUse.toUpperCase()} | {m.sizeGb}GB)
+                  <Text color={isSelected ? theme.colors.primary : theme.colors.white}>
+                    {`   ${scoreStr}   ${useStr}   ${sizeStr}`}
                   </Text>
                 </Box>
               );
