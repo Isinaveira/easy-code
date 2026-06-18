@@ -11,6 +11,8 @@ export interface ModelDescriptor {
   supportedOutputFormats?: OutputFormat[];
   score?: number;
   use?: string;
+  quant?: string;
+  params?: string;
 }
 
 export interface CompatibilityResult {

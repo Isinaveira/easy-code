@@ -88,6 +88,13 @@ export class LlmfitClient {
         if (item.use || item.useCase || item.use_case) {
           descriptor.use = item.use || item.useCase || item.use_case;
         }
+        if (item.quant || item.quantization) {
+          descriptor.quant = item.quant || item.quantization;
+        }
+        const parameterSize = item.params || item.parameter_size || item.parameters;
+        if (parameterSize) {
+          descriptor.params = typeof parameterSize === 'number' ? `${parameterSize}B` : String(parameterSize);
+        }
         if (Array.isArray(item.capabilities)) {
           descriptor.capabilities = item.capabilities;
         }

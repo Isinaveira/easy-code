@@ -156,7 +156,7 @@ export const AgentSelectionScreen: React.FC = () => {
     const hasMoreAbove = modelScrollOffset > 0;
     const hasMoreBelow = modelScrollOffset + visibleCount < models.length;
 
-    const header = `     ${'MODELO'.padEnd(35)}   ${'SCORE'.padStart(5)}   ${'CASO DE USO'.padEnd(16)}   ${'TAMAÑO'.padStart(8)}`;
+    const header = `     ${'MODELO'.padEnd(24)} ${'PARAMS'.padStart(6)} ${'SCORE'.padStart(5)} ${'QUANT'.padEnd(6)} ${'TAMAÑO'.padStart(6)} ${'USO'.padEnd(7)}`;
 
     return (
       <Box flexDirection="column" borderStyle="single" borderColor="magenta" padding={1}>
@@ -197,10 +197,12 @@ export const AgentSelectionScreen: React.FC = () => {
               const mScore = m.score || m.metrics[reqs.priorityMetric] || 50;
               const mUse = m.use || 'general';
 
-              const nameStr = formatModelName(m.name, 35);
+              const nameStr = formatModelName(m.name, 24);
+              const paramsStr = (m.params || 'N/A').padStart(6).slice(-6);
               const scoreStr = mScore.toFixed(1).padStart(5);
-              const useStr = mUse.toUpperCase().slice(0, 16).padEnd(16);
-              const sizeStr = `${m.sizeGb.toFixed(1)} GB`.padStart(8);
+              const quantStr = (m.quant || 'N/A').padEnd(6).slice(0, 6);
+              const sizeStr = `${m.sizeGb.toFixed(1)}G`.padStart(6);
+              const useStr = mUse.toUpperCase().slice(0, 7).padEnd(7);
 
               return (
                 <Box key={m.name} paddingLeft={isSelected ? 2 : 4} flexDirection="row">
@@ -212,7 +214,7 @@ export const AgentSelectionScreen: React.FC = () => {
                     <Text color={theme.colors.white}>{nameStr}</Text>
                   )}
                   <Text color={isSelected ? theme.colors.primary : theme.colors.white}>
-                    {`   ${scoreStr}   ${useStr}   ${sizeStr}`}
+                    {` ${paramsStr} ${scoreStr} ${quantStr} ${sizeStr} ${useStr}`}
                   </Text>
                 </Box>
               );
