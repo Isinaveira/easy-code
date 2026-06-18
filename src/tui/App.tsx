@@ -13,6 +13,7 @@ import AgentSelectionScreen from './screens/AgentSelectionScreen.js';
 import HardwareDetectionScreen from './screens/HardwareDetectionScreen.js';
 import ModelSelectionScreen from './screens/ModelSelectionScreen.js';
 import SaveScreen from './screens/SaveScreen.js';
+import { useTerminalWidth } from './hooks/useTerminalWidth.js';
 
 const SCREEN_STEPS: Record<string, number> = {
   NODE_NAME: 1,
@@ -25,6 +26,7 @@ const SCREEN_STEPS: Record<string, number> = {
 
 const AppContent: React.FC = () => {
   const { state } = useAppState();
+  const width = Math.max(80, useTerminalWidth());
 
   const renderActiveScreen = () => {
     switch (state.activeScreen) {
@@ -49,7 +51,7 @@ const AppContent: React.FC = () => {
   const statusText = state.loadingMessage || `Configurando nodo - ${state.activeScreen}`;
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1} width={80}>
+    <Box flexDirection="column" paddingX={2} paddingY={1} width={width}>
       <Header />
       <StatusBar currentStep={currentStep} totalSteps={6} statusText={statusText} />
       <Box minHeight={12} borderStyle="double" borderColor="cyan" padding={1} flexDirection="column">

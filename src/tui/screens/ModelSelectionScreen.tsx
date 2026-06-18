@@ -4,6 +4,7 @@ import { Box, Text, useInput } from 'ink';
 import { useAppState } from '../providers/AppStateProvider.js';
 import { getSegmentedCatalogForAgent, AGENT_REQUIREMENTS_MAP, AgentProfile } from '../../agents/index.js';
 import theme from '../theme/index.js';
+import { useTerminalWidth } from '../hooks/useTerminalWidth.js';
 
 function formatModelName(name: string, maxLen: number = 32): string {
   if (name.length <= maxLen) {
@@ -16,6 +17,7 @@ function formatModelName(name: string, maxLen: number = 32): string {
 
 export const ModelSelectionScreen: React.FC = () => {
   const { state, dispatch } = useAppState();
+  const width = useTerminalWidth();
 
   // Modal scrolling states
   const [modelIndex, setModelIndex] = useState(0);
@@ -104,7 +106,12 @@ export const ModelSelectionScreen: React.FC = () => {
   const hasMoreAbove = modelScrollOffset > 0;
   const hasMoreBelow = modelScrollOffset + visibleCount < models.length;
 
-  const header = `     ${'MODELO'.padEnd(24)} ${'PARAMS'.padStart(6)} ${'SCORE'.padStart(5)} ${'QUANT'.padEnd(6)} ${'TAMAÑO'.padStart(6)} ${'USO'.padEnd(7)}`;
+  const showExtraCols = width >= 92;
+  const modelWidth = showExtraCols ? Math.max(20, width - 61) : Math.max(20, width - 47);
+
+  const header = showExtraCols
+    ? `     ${'MODELO'.padEnd(modelWidth)} ${'PARAMS'.padStart(6)} ${'SCORE'.padStart(5)} ${'QUANT'.padEnd(6)} ${'TAMAÑO'.padStart(6)} ${'TPS'.padStart(5)} ${'FIT'.padEnd(7)} ${'USO'.padEnd(7)}`
+    : `     ${'MODELO'.padEnd(modelWidth)} ${'PARAMS'.padStart(6)} ${'SCORE'.padStart(5)} ${'QUANT'.padEnd(6)} ${'TAMAÑO'.padStart(6)} ${'USO'.padEnd(7)}`;
 
   return (
     <Box flexDirection="column" marginY={1}>
@@ -156,13 +163,19 @@ export const ModelSelectionScreen: React.FC = () => {
             const isSelected = actualIndex === modelIndex;
             const mScore = m.score || m.metrics[reqs.priorityMetric] || 50;
             const mUse = m.use || 'general';
+            const mTps = m.estimated_tps || (m as any).tps || 0;
+            const mFit = m.fit_level || 'Good';
 
-            const nameStr = formatModelName(m.name, 24);
+            const nameStr = formatModelName(m.name, modelWidth);
             const paramsStr = (m.params || 'N/A').padStart(6).slice(-6);
             const scoreStr = mScore.toFixed(1).padStart(5);
             const quantStr = (m.quant || 'N/A').padEnd(6).slice(0, 6);
             const sizeStr = `${m.sizeGb.toFixed(1)}G`.padStart(6);
             const useStr = mUse.toUpperCase().slice(0, 7).padEnd(7);
+
+            const rowData = showExtraCols
+              ? ` ${paramsStr} ${scoreStr} ${quantStr} ${sizeStr} ${mTps.toFixed(1).padStart(5)} ${mFit.padEnd(7).slice(0, 7)} ${useStr}`
+              : ` ${paramsStr} ${scoreStr} ${quantStr} ${sizeStr} ${useStr}`;
 
             return (
               <Box key={m.name} paddingLeft={isSelected ? 2 : 4} flexDirection="row">
@@ -174,7 +187,7 @@ export const ModelSelectionScreen: React.FC = () => {
                   <Text color={theme.colors.white}>{nameStr}</Text>
                 )}
                 <Text color={isSelected ? theme.colors.primary : theme.colors.white}>
-                  {` ${paramsStr} ${scoreStr} ${quantStr} ${sizeStr} ${useStr}`}
+                  {rowData}
                 </Text>
               </Box>
             );
