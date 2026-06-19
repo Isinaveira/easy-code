@@ -91,13 +91,14 @@ function formatRowCols(
 }
 
 function formatHeaderRow(): string {
-  const m = 'MODELO'.padEnd(modeloWidth);
+  // '  ' (2 spaces) to align with the row's selection indicator '> ' or '  '
+  const m = ('  MODELO').padEnd(modeloWidth + 2);
   const p = 'PARAMS'.padEnd(paramsWidth);
   const s = 'SCORE'.padEnd(scoreWidth);
   const mem = 'MEMORIA'.padEnd(memWidth);
   const ctx = 'CONTEXTO'.padEnd(ctxWidth);
   const t = 'TPS'.padEnd(tpsWidth);
-  return `  ${m} │ ${p} │ ${s} │ ${mem} │ ${ctx} │ ${t} │ FIT`;
+  return `${m} │ ${p} │ ${s} │ ${mem} │ ${ctx} │ ${t} │ FIT`;
 }
 
 export const ModelSelectionScreen: React.FC = () => {
@@ -362,12 +363,12 @@ export const ModelSelectionScreen: React.FC = () => {
       ) : (
         <Box flexDirection="column">
           {/* Table Header */}
-          <Box marginBottom={1} flexDirection="column">
+          <Box marginBottom={1} flexDirection="column" paddingLeft={2}>
             <Text color={theme.colors.gray} bold>
               {tableHeader}
             </Text>
             <Text color={theme.colors.gray}>
-              {'─'.repeat(modeloWidth + 4)}┼{'─'.repeat(paramsWidth + 2)}┼{'─'.repeat(scoreWidth + 2)}┼{'─'.repeat(memWidth + 2)}┼{'─'.repeat(ctxWidth + 2)}┼{'─'.repeat(tpsWidth + 2)}┼{'─'.repeat(18)}
+              {'─'.repeat(modeloWidth + 3)}┼{'─'.repeat(paramsWidth + 2)}┼{'─'.repeat(scoreWidth + 2)}┼{'─'.repeat(memWidth + 2)}┼{'─'.repeat(ctxWidth + 2)}┼{'─'.repeat(tpsWidth + 2)}┼{'─'.repeat(18)}
             </Text>
           </Box>
 
