@@ -42,9 +42,9 @@ export class ModelSelector {
   private traces: SelectionTrace[] = [];
   private hardwareProfile: any = null;
 
-  constructor(client: LlmfitClient = new LlmfitClient(), hfClient: HFClient = new HFClient()) {
+  constructor(client: LlmfitClient = new LlmfitClient(), hfClient?: HFClient, hfToken?: string) {
     this.client = client;
-    this.hfClient = hfClient;
+    this.hfClient = hfClient || new HFClient(undefined, hfToken);
   }
 
   setHardwareProfile(profile: any) {

@@ -11,6 +11,7 @@ import NodeNameScreen from './screens/NodeNameScreen.js';
 import NodeRoleScreen from './screens/NodeRoleScreen.js';
 import AgentSelectionScreen from './screens/AgentSelectionScreen.js';
 import HardwareDetectionScreen from './screens/HardwareDetectionScreen.js';
+import HFTokenScreen from './screens/HFTokenScreen.js';
 import ModelSelectionScreen from './screens/ModelSelectionScreen.js';
 import SaveScreen from './screens/SaveScreen.js';
 import { useTerminalWidth } from './hooks/useTerminalWidth.js';
@@ -19,9 +20,10 @@ const SCREEN_STEPS: Record<string, number> = {
   NODE_NAME: 1,
   NODE_ROLE: 2,
   AGENT_SELECTION: 3,
-  HARDWARE_DETECTION: 4,
-  MODEL_SELECTION: 5,
-  SAVE_CONFIG: 6
+  HF_TOKEN: 4,
+  HARDWARE_DETECTION: 5,
+  MODEL_SELECTION: 6,
+  SAVE_CONFIG: 7
 };
 
 const AppContent: React.FC = () => {
@@ -36,6 +38,8 @@ const AppContent: React.FC = () => {
         return <NodeRoleScreen />;
       case 'AGENT_SELECTION':
         return <AgentSelectionScreen />;
+      case 'HF_TOKEN':
+        return <HFTokenScreen />;
       case 'HARDWARE_DETECTION':
         return <HardwareDetectionScreen />;
       case 'MODEL_SELECTION':
@@ -53,7 +57,7 @@ const AppContent: React.FC = () => {
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1} width={width}>
       <Header />
-      <StatusBar currentStep={currentStep} totalSteps={6} statusText={statusText} />
+      <StatusBar currentStep={currentStep} totalSteps={7} statusText={statusText} />
       <Box minHeight={12} borderStyle="double" borderColor="cyan" padding={1} flexDirection="column">
         {renderActiveScreen()}
       </Box>

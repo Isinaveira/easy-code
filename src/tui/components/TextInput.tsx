@@ -7,9 +7,10 @@ interface TextInputProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   placeholder?: string;
+  mask?: string;
 }
 
-export const TextInput: React.FC<TextInputProps> = ({ value, onChange, onSubmit, placeholder }) => {
+export const TextInput: React.FC<TextInputProps> = ({ value, onChange, onSubmit, placeholder, mask }) => {
   useInput((input, key) => {
     if (key.return) {
       onSubmit();
@@ -37,7 +38,7 @@ export const TextInput: React.FC<TextInputProps> = ({ value, onChange, onSubmit,
       {value.length === 0 ? (
         <Text color="gray">{placeholder || 'Type here...'}</Text>
       ) : (
-        <Text color="white">{value}</Text>
+        <Text color="white">{mask ? mask.repeat(value.length) : value}</Text>
       )}
       <Text color="cyan" bold>█</Text>
     </Box>

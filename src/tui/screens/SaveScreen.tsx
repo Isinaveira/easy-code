@@ -43,7 +43,7 @@ export const SaveScreen: React.FC = () => {
 
       // Dynamically select models using ModelSelector
       const client = new LlmfitClient();
-      const selector = new ModelSelector(client);
+      const selector = new ModelSelector(client, undefined, state.hfToken);
       if (state.hardwareProfile) {
         selector.setHardwareProfile(state.hardwareProfile);
       }
@@ -79,6 +79,7 @@ export const SaveScreen: React.FC = () => {
         ACTIVE_AGENTS: state.selectedAgents.join(','),
         AVAILABLE_VRAM: state.detectedVram.toString(),
         ...(ip && { TAILSCALE_IP: ip }),
+        ...(state.hfToken && { HF_TOKEN: state.hfToken })
       };
 
       // Expose selected models in environment

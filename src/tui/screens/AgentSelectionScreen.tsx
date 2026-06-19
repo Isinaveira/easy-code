@@ -42,7 +42,7 @@ export const AgentSelectionScreen: React.FC = () => {
       if (agentIndex === ALL_AGENTS.length) {
         // Confirm & Continue button pressed
         if (state.selectedAgents.length > 0) {
-          dispatch({ type: 'NAVIGATE', payload: 'HARDWARE_DETECTION' });
+          dispatch({ type: 'NAVIGATE', payload: 'HF_TOKEN' });
         }
       } else {
         // Toggle logic: just toggle agent check/uncheck status

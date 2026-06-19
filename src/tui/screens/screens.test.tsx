@@ -131,7 +131,16 @@ describe('TUI Screen Flow Integration', () => {
       await waitTick();
     });
 
-    // Press Enter to confirm agent selection and navigate to detection
+    // Press Enter to confirm agent selection and navigate to HF_TOKEN
+    await act(async () => {
+      stdin.write('\r');
+      await waitTick();
+    });
+
+    // Verify step 4: HFTokenScreen
+    expect(lastFrame()).toContain('¿Deseas proveer tu Hugging Face Token? (Opcional)');
+
+    // Press Enter to leave token blank and navigate to HARDWARE_DETECTION
     await act(async () => {
       stdin.write('\r');
       await waitTick();

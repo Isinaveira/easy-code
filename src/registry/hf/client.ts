@@ -7,9 +7,11 @@ export class HFClient {
   private cache: HFCache;
   private reqCount: number = 0;
   private lastReqTime: number = 0;
+  private token?: string;
 
-  constructor(cacheDbPath?: string) {
+  constructor(cacheDbPath?: string, token?: string) {
     this.cache = new HFCache(cacheDbPath);
+    this.token = token || process.env.HF_TOKEN;
   }
 
   // Rate limiting simple: máximo 5 requests per second si es cold start masivo
@@ -66,11 +68,14 @@ export class HFClient {
 
   private async fetchRepo(repoId: string): Promise<HFModelMetadata | null> {
     const url = `https://huggingface.co/api/models/${repoId}`;
-    const res = await fetch(url, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
+    const headers: Record<string, string> = {
+      'Accept': 'application/json'
+    };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const res = await fetch(url, { headers });
 
     if (res.status === 404) return null;
     if (!res.ok) {
@@ -83,11 +88,14 @@ export class HFClient {
 
   private async searchModel(query: string): Promise<HFModelMetadata[] | null> {
     const url = `https://huggingface.co/api/models?search=${encodeURIComponent(query)}&limit=3&sort=downloads&direction=-1`;
-    const res = await fetch(url, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
+    const headers: Record<string, string> = {
+      'Accept': 'application/json'
+    };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const res = await fetch(url, { headers });
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} on search`);

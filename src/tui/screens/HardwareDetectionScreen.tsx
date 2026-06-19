@@ -18,7 +18,7 @@ export const HardwareDetectionScreen: React.FC = () => {
       const vram = profile.gpu ? profile.gpu.vramGb : profile.memory.totalGb;
       
       const llmfitClient = new LlmfitClient();
-      const selector = new ModelSelector(llmfitClient);
+      const selector = new ModelSelector(llmfitClient, undefined, state.hfToken);
       if (profile) {
         selector.setHardwareProfile(profile);
       }

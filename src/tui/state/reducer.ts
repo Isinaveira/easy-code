@@ -17,7 +17,8 @@ export const INITIAL_STATE: TuiState = {
   loading: false,
   loadingMessage: '',
   error: null,
-  saveStatus: 'idle'
+  saveStatus: 'idle',
+  hfToken: ''
 };
 
 export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
@@ -179,6 +180,12 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         loadingMessage: '',
         saveStatus: 'error',
         error: action.payload
+      };
+
+    case 'SET_HF_TOKEN':
+      return {
+        ...state,
+        hfToken: action.payload
       };
 
     default:

@@ -6,6 +6,7 @@ export type ScreenType =
   | 'NODE_NAME'
   | 'NODE_ROLE'
   | 'AGENT_SELECTION'
+  | 'HF_TOKEN'
   | 'HARDWARE_DETECTION'
   | 'MODEL_SELECTION'
   | 'SAVE_CONFIG';
@@ -36,6 +37,7 @@ export interface TuiState {
   loadingMessage: string;
   error: string | null;
   saveStatus: 'idle' | 'saving' | 'success' | 'error';
+  hfToken?: string;
 }
 
 export type TuiAction =
@@ -53,4 +55,5 @@ export type TuiAction =
   | { type: 'PREVIOUS_AGENT' }
   | { type: 'START_SAVE' }
   | { type: 'SET_SAVE_SUCCESS' }
-  | { type: 'SET_SAVE_ERROR'; payload: string };
+  | { type: 'SET_SAVE_ERROR'; payload: string }
+  | { type: 'SET_HF_TOKEN'; payload: string };
