@@ -138,10 +138,12 @@ describe('TUI Screen Flow Integration', () => {
     });
 
     // Verify step 4: HFTokenScreen
-    expect(lastFrame()).toContain('¿Deseas proveer tu Hugging Face Token? (Opcional)');
+    expect(lastFrame()).toContain('Introduce tu Hugging Face Token:');
 
-    // Press Enter to leave token blank and navigate to HARDWARE_DETECTION
+    // Type a fake token and press Enter to navigate to HARDWARE_DETECTION
     await act(async () => {
+      stdin.write('hf_fake_token_123');
+      await waitTick();
       stdin.write('\r');
       await waitTick();
     });
