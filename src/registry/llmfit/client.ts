@@ -55,9 +55,13 @@ export class LlmfitClient {
       return rawModels.map((item: any) => {
         const name = item.name || '';
         
-        // Extract size in GB or fallback
+        // Compute sizeGb from available memory fields or fallback heuristic
         let sizeGb = 4.0; // conservative default
-        if (typeof item.sizeGb === 'number') {
+        if (typeof item.memory_required_gb === 'number') {
+          sizeGb = item.memory_required_gb;
+        } else if (typeof item.total_memory_gb === 'number') {
+          sizeGb = item.total_memory_gb;
+        } else if (typeof item.sizeGb === 'number') {
           sizeGb = item.sizeGb;
         } else if (typeof item.size_gb === 'number') {
           sizeGb = item.size_gb;
@@ -66,67 +70,59 @@ export class LlmfitClient {
         } else if (typeof item.size_bytes === 'number') {
           sizeGb = Math.round((item.size_bytes / (1024 * 1024 * 1024)) * 100) / 100;
         } else if (typeof item.size === 'number') {
-          // If size is a small float/int, assume GB. If huge, assume Bytes.
           if (item.size > 1000000) {
             sizeGb = Math.round((item.size / (1024 * 1024 * 1024)) * 100) / 100;
           } else {
             sizeGb = item.size;
           }
         } else {
-          // Fallback parsing from name (e.g. "llama3:8b" -> 8B parameters -> ~4.8 GB)
-          const paramMatch = name.match(/:(\d+(\.\d+)?)[bB]/);
+          const paramMatch = name.match(/:([\d]+(\.\d+)?)[bB]/);
           if (paramMatch) {
             const params = parseFloat(paramMatch[1]);
-            // rough heuristic: 0.6 GB per billion parameters (Q4 quantization)
             sizeGb = Math.round(params * 0.6 * 10) / 10;
           }
         }
 
-        const descriptor: any = {
+        // Pass through all API fields directly, only adding sizeGb as computed
+        const descriptor: ModelDescriptor = {
           name,
           sizeGb,
-          description: item.description || `Model fetched from llmfit (Fit score: ${item.score ?? 'N/A'})`
+          description: item.description || `Model fetched from llmfit (Fit score: ${item.score ?? 'N/A'})`,
+          // Direct passthrough of all llmfit API fields
+          score: typeof item.score === 'number' ? item.score : undefined,
+          score_components: item.score_components || undefined,
+          estimated_tps: typeof item.estimated_tps === 'number' ? item.estimated_tps : (typeof item.tps === 'number' ? item.tps : undefined),
+          fit_level: item.fit_level || undefined,
+          fit_label: item.fit_label || undefined,
+          memory_required_gb: typeof item.memory_required_gb === 'number' ? item.memory_required_gb : undefined,
+          total_memory_gb: typeof item.total_memory_gb === 'number' ? item.total_memory_gb : undefined,
+          memory_available_gb: typeof item.memory_available_gb === 'number' ? item.memory_available_gb : undefined,
+          utilization_pct: typeof item.utilization_pct === 'number' ? item.utilization_pct : undefined,
+          moe_offloaded_gb: typeof item.moe_offloaded_gb === 'number' ? item.moe_offloaded_gb : null,
+          parameter_count: item.parameter_count || undefined,
+          params: item.params ? String(item.params) : (item.parameter_size ? String(item.parameter_size) : undefined),
+          params_b: typeof item.params_b === 'number' ? item.params_b : undefined,
+          is_moe: typeof item.is_moe === 'boolean' ? item.is_moe : undefined,
+          category: item.category || undefined,
+          provider: item.provider || undefined,
+          license: item.license ?? null,
+          release_date: item.release_date ?? null,
+          best_quant: item.best_quant || undefined,
+          context_length: typeof item.context_length === 'number' ? item.context_length : undefined,
+          contextWindow: typeof item.context_length === 'number' ? item.context_length : (typeof item.contextWindow === 'number' ? item.contextWindow : undefined),
+          use_case: item.use_case || undefined,
+          use: item.use_case || item.use || undefined,
+          capabilities: Array.isArray(item.capabilities) ? item.capabilities : undefined,
+          supports_tp: Array.isArray(item.supports_tp) ? item.supports_tp : undefined,
+          run_mode: item.run_mode || undefined,
+          run_mode_label: item.run_mode_label || undefined,
+          runtime: item.runtime || undefined,
+          runtime_label: item.runtime_label || undefined,
+          notes: Array.isArray(item.notes) ? item.notes : undefined,
+          gguf_sources: Array.isArray(item.gguf_sources) ? item.gguf_sources : undefined,
+          quant: item.quant || item.quantization || undefined,
+          supportedOutputFormats: Array.isArray(item.supportedOutputFormats || item.output_formats || item.formats) ? (item.supportedOutputFormats || item.output_formats || item.formats) : undefined,
         };
-
-        if (typeof item.score === 'number' || item.min_fit) {
-          descriptor.score = typeof item.score === 'number' ? item.score : (item.min_fit === 'good' ? 80 : 50);
-        }
-        if (item.use || item.useCase || item.use_case) {
-          descriptor.use = item.use || item.useCase || item.use_case;
-        }
-        if (item.quant || item.quantization) {
-          descriptor.quant = item.quant || item.quantization;
-        }
-        const parameterSize = item.params || item.parameter_size || item.parameters;
-        if (parameterSize) {
-          descriptor.params = typeof parameterSize === 'number' ? `${parameterSize}B` : String(parameterSize);
-        }
-        if (item.score_components) {
-          descriptor.score_components = item.score_components;
-        }
-        const tps = item.estimated_tps || item.tps;
-        if (typeof tps === 'number') {
-          descriptor.estimated_tps = tps;
-        }
-        const fit = item.fit_level || item.fit;
-        if (fit) {
-          descriptor.fit_level = String(fit);
-        }
-        const mem = item.memory_required_gb || item.total_memory_gb;
-        if (typeof mem === 'number') {
-          descriptor.memory_required_gb = mem;
-        }
-        if (Array.isArray(item.capabilities)) {
-          descriptor.capabilities = item.capabilities;
-        }
-        const cw = item.contextWindow || item.context_window || item.context;
-        if (typeof cw === 'number') {
-          descriptor.contextWindow = cw;
-        }
-        const formats = item.supportedOutputFormats || item.output_formats || item.formats;
-        if (Array.isArray(formats)) {
-          descriptor.supportedOutputFormats = formats;
-        }
 
         return descriptor;
       });

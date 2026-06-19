@@ -45,8 +45,8 @@ describe('Llmfit Sub-Services', () => {
 
       expect(mockFetch).toHaveBeenCalledWith('http://localhost:8787/api/v1/models/top', expect.any(Object));
       expect(models).toHaveLength(2);
-      expect(models[0]).toEqual({ name: 'llama3.1:8b', sizeGb: 4.8, description: 'Llama 3.1 model' });
-      expect(models[1]).toEqual({ name: 'qwen2.5:7b', sizeGb: 4.8, description: 'Qwen model' });
+      expect(models[0]).toMatchObject({ name: 'llama3.1:8b', sizeGb: 4.8, description: 'Llama 3.1 model' });
+      expect(models[1]).toMatchObject({ name: 'qwen2.5:7b', sizeGb: 4.8, description: 'Qwen model' });
     });
 
     it('should handle wrapped models payload', async () => {
@@ -63,7 +63,7 @@ describe('Llmfit Sub-Services', () => {
       const models = await client.getModels();
 
       expect(models).toHaveLength(1);
-      expect(models[0]).toEqual({ name: 'phi3:mini', sizeGb: 2.2, description: 'Phi3 model' });
+      expect(models[0]).toMatchObject({ name: 'phi3:mini', sizeGb: 2.2, description: 'Phi3 model' });
     });
 
     it('should fallback size parsing from name when size metadata is missing', async () => {
@@ -78,7 +78,7 @@ describe('Llmfit Sub-Services', () => {
       const models = await client.getModels();
 
       expect(models).toHaveLength(1);
-      expect(models[0]).toEqual({ name: 'mistral:7b', sizeGb: 4.2, description: 'Mistral model' });
+      expect(models[0]).toMatchObject({ name: 'mistral:7b', sizeGb: 4.2, description: 'Mistral model' });
     });
 
     it('should serialize query filters as URL query parameters and parse detailed fields', async () => {
@@ -105,9 +105,9 @@ describe('Llmfit Sub-Services', () => {
         expect.any(Object)
       );
       expect(models).toHaveLength(1);
-      expect(models[0]).toEqual({
+      expect(models[0]).toMatchObject({
         name: 'phi3:mini',
-        sizeGb: 2.2,
+        sizeGb: 10.7,
         description: 'Model fetched from llmfit (Fit score: 98.4)',
         score: 98.4,
         score_components: { context: 100, fit: 100, quality: 96.5, speed: 100 },
