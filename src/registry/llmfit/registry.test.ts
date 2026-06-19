@@ -43,7 +43,7 @@ describe('Llmfit Sub-Services', () => {
       const client = new LlmfitClient('http://localhost:8787');
       const models = await client.getModels();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8787/api/v1/models', expect.any(Object));
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8787/api/v1/models/top', expect.any(Object));
       expect(models).toHaveLength(2);
       expect(models[0]).toEqual({ name: 'llama3.1:8b', sizeGb: 4.8, description: 'Llama 3.1 model' });
       expect(models[1]).toEqual({ name: 'qwen2.5:7b', sizeGb: 4.8, description: 'Qwen model' });
@@ -101,7 +101,7 @@ describe('Llmfit Sub-Services', () => {
       const models = await client.getModels({ min_fit: 'good', limit: 1 });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8787/api/v1/models?min_fit=good&limit=1',
+        'http://localhost:8787/api/v1/models/top?min_fit=good&limit=1',
         expect.any(Object)
       );
       expect(models).toHaveLength(1);

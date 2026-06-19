@@ -112,7 +112,7 @@ export class ModelSelector {
       for (const [key, val] of Object.entries(filters)) {
         queryParams.append(key, String(val));
       }
-      querySent = `/api/v1/models?${queryParams.toString()}`;
+      querySent = `/api/v1/models/top?${queryParams.toString()}`;
       console.log(`[ModelSelector] Enviando consulta a llmfit: ${querySent}`);
       return this.client.getModels(filters);
     };

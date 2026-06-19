@@ -31,7 +31,7 @@ export class LlmfitClient {
         }
       }
       const queryString = queryParams.toString();
-      const url = `${this.baseUrl}/api/v1/models` + (queryString ? `?${queryString}` : '');
+      const url = `${this.baseUrl}/api/v1/models/top` + (queryString ? `?${queryString}` : '');
       
       const response = await fetch(url, {
         signal: AbortSignal.timeout(3000)
