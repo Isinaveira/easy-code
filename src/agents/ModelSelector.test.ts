@@ -48,7 +48,7 @@ describe('ModelSelector', () => {
       const selector = new ModelSelector(mockClient);
 
       expect(selector.getProfileFilters('FAST')).toEqual({
-        sort: 'speed',
+        sort: 'tps',
         min_fit: 'good',
         include_too_tight: false,
         top_only: true
@@ -62,7 +62,7 @@ describe('ModelSelector', () => {
       });
 
       expect(selector.getProfileFilters('QUALITY')).toEqual({
-        sort: 'quality',
+        sort: 'score',
         min_fit: 'good',
         include_too_tight: false,
         top_only: true
@@ -97,7 +97,7 @@ describe('ModelSelector', () => {
       expect(result).toEqual(mockModel);
       expect(mockClient.getModels).toHaveBeenCalledTimes(1);
       expect(mockClient.getModels).toHaveBeenCalledWith({
-        sort: 'speed',
+        sort: 'tps',
         min_fit: 'good',
         include_too_tight: false,
         top_only: true

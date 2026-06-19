@@ -67,7 +67,7 @@ export class ModelSelector {
     switch (profile) {
       case 'FAST':
         return {
-          sort: 'speed',
+          sort: 'tps',
           min_fit: 'good',
           include_too_tight: false,
           top_only: true
@@ -81,7 +81,7 @@ export class ModelSelector {
         };
       case 'QUALITY':
         return {
-          sort: 'quality',
+          sort: 'score',
           min_fit: 'good',
           include_too_tight: false,
           top_only: true
