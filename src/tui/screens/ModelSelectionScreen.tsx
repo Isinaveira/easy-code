@@ -22,12 +22,12 @@ function formatContextLimit(ctx: number): string {
   return String(ctx);
 }
 
-const modeloWidth = 36;
-const paramsWidth = 9;
-const scoreWidth = 8;
-const memWidth = 10;
-const ctxWidth = 11;
-const tpsWidth = 7;
+const modeloWidth = 32;
+const paramsWidth = 8;
+const scoreWidth = 6;
+const memWidth = 8;
+const ctxWidth = 8;
+const tpsWidth = 6;
 
 const MARQUEE_INTERVAL = 300;
 const MARQUEE_PAUSE_TICKS = 3;
@@ -87,7 +87,7 @@ function formatRowCols(
   const memoriaCol = String(memoria).padEnd(memWidth);
   const contextoCol = String(contexto).padEnd(ctxWidth);
   const tpsCol = String(tps).padEnd(tpsWidth);
-  return `${paramsCol}${scoreCol}${memoriaCol}${contextoCol}${tpsCol}`;
+  return `│ ${paramsCol} │ ${scoreCol} │ ${memoriaCol} │ ${contextoCol} │ ${tpsCol} │ `;
 }
 
 function formatHeaderRow(): string {
@@ -97,7 +97,7 @@ function formatHeaderRow(): string {
   const mem = 'MEMORIA'.padEnd(memWidth);
   const ctx = 'CONTEXTO'.padEnd(ctxWidth);
   const t = 'TPS'.padEnd(tpsWidth);
-  return `  ${m}${p}${s}${mem}${ctx}${t}FIT`;
+  return `  ${m} │ ${p} │ ${s} │ ${mem} │ ${ctx} │ ${t} │ FIT`;
 }
 
 export const ModelSelectionScreen: React.FC = () => {
@@ -362,9 +362,12 @@ export const ModelSelectionScreen: React.FC = () => {
       ) : (
         <Box flexDirection="column">
           {/* Table Header */}
-          <Box marginBottom={1}>
+          <Box marginBottom={1} flexDirection="column">
             <Text color={theme.colors.gray} bold>
               {tableHeader}
+            </Text>
+            <Text color={theme.colors.gray}>
+              {'─'.repeat(modeloWidth + 4)}┼{'─'.repeat(paramsWidth + 2)}┼{'─'.repeat(scoreWidth + 2)}┼{'─'.repeat(memWidth + 2)}┼{'─'.repeat(ctxWidth + 2)}┼{'─'.repeat(tpsWidth + 2)}┼{'─'.repeat(18)}
             </Text>
           </Box>
 
