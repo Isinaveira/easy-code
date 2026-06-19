@@ -17,18 +17,25 @@ Dependencies are instantiated at the entry point (`index.ts` or `installer.ts` `
    ├─► Instantiate JsonPersistenceStore()
    ├─► Instantiate EnvPersistenceWriter()
    │
-   └─► Instantiate NodeInstaller(detector, jsonStore, envWriter)
+   └─► Render Ink React App component tree
          │
-         └─► run()
+         └─► AppContent (Wizard Screens navigation)
 ```
 
 ---
 
 ## Operations Flow
 
-1. **Verify Dependencies**: Checks if `git`, `node`, and `ollama` are present in PATH.
-2. **Collect Input**: Prompts user for Node Name, Node Role (Master/Worker), and Active Agents list using Clack console selectors.
-3. **Detect Capabilities**: Invokes `HardwareDetector.detect()` to obtain the platform profile.
-4. **Persist State**:
-   - Saves a clean, structured `NodeState` (including the full nested `HardwareProfile`) into `./easy-code-state.json`.
-   - Generates and writes flat cluster configuration variables to `.env` for compatibility with deployment scripts.
+1. **Verify Dependencies**: Confirms `git`, `node`, and `ollama` are present in PATH.
+2. **Setup Wizard Steps**:
+   - **Step 1 (NODE_NAME)**: Input the hostname/name for this node.
+   - **Step 2 (NODE_ROLE)**: Select 'master' or 'worker' role.
+   - **Step 3 (AGENT_SELECTION)**: Check/uncheck agents to run (checklist only).
+   - **Step 4 (HARDWARE_DETECTION)**: Profile node resources and query LLMFit health/catalogs.
+   - **Step 5 (MODEL_SELECTION)**: Select model configuration one-by-one from the fit table.
+   - **Step 6 (SAVE_CONFIG)**: Save configuration and run `ModelSelector` dynamically.
+3. **Persist State**:
+   - Runs `ModelSelector` to resolve the final models for all selected agents.
+   - Saves `NodeState` (including `modelAssignments` and nested `HardwareProfile`) into `./easy-code-state.json`.
+   - Writes environment configuration to `.env` (including role, active agents list, and specific `MODEL_AGENT_NAME` variables).
+

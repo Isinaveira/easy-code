@@ -14,19 +14,21 @@ The refactoring of **easy-code** has transformed a monolithic setup script into 
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                        CLI Layer                       │
-│                   (index.ts, installer.ts)              │
+│                   CLI / TUI Layer                      │
+│        (installer.ts, App.tsx, screens wizard)         │
 └───────────────────────────┬────────────────────────────┘
+                            │
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │                   Application Services                 │
-│         (NodeInstaller, selectBestModelForAgent)       │
+│        (ModelSelector, selectBestModelForAgent)        │
 └───────────────┬───────────────────────────┬────────────┘
                 ▼                           ▼
 ┌───────────────────────────┐   ┌────────────────────────┐
 │    Compatibility Layer    │   │     Registry Layer     │
 │   (CompatibilityEngine)   │   │     (ModelRegistry)    │
 └───────────────┬───────────┘   └───────────┬────────────┘
+                │                           │
                 ▼                           ▼
 ┌────────────────────────────────────────────────────────┐
 │                      Domain Model                      │
@@ -45,9 +47,10 @@ The refactoring of **easy-code** has transformed a monolithic setup script into 
    - Assesses if a particular model configuration can run safely on a `HardwareProfile`.
    - Uses composable validation rules (e.g., `VramRule`).
 3. **Registry Module (`src/registry/`)**:
-   - Abstraction over remote model catalogs (`ModelRegistry`) and local downloads (`LocalModelStore`).
-   - Completely decouples the system from Ollama endpoints.
+   - Abstraction over remote model catalogs (`LlmfitRegistry`, `OllamaRegistry`) and local downloads.
+   - Completely decouples the system from direct Ollama endpoints.
 4. **Agents Module (`src/agents/`)**:
-   - Defines compute requirements per phase and selects cognitive models dynamically.
+   - Compiles requirements, maps profiles (`FAST`, `BALANCED`, `QUALITY`, `CODING`), and executes queries with automated fallback sequencing using `ModelSelector`.
 5. **Persistence Module (`src/persistence/`)**:
    - Separates cluster environment properties (`.env`) from structured node metadata (`easy-code-state.json`).
+   - Integrates model assignments persistent tracking.
