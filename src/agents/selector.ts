@@ -82,17 +82,20 @@ export function enrichModelDescriptor(model: ModelDescriptor): CognitiveModelIte
   };
 
   const metadata = foundKey ? COGNITIVE_METRICS_MAP[foundKey] : {
-    contextWindow: model.contextWindow || 4096,
+    contextWindow: model.context_length || model.contextWindow || 4096,
     capabilities: model.capabilities || [] as Capability[],
     supportedOutputFormats: model.supportedOutputFormats || ['text', 'markdown', 'json', 'code'] as OutputFormat[],
     metrics: defaultMetrics
   };
 
+  // Resolve contextWindow: API's context_length takes priority over everything
+  const resolvedContextWindow = model.context_length || model.contextWindow || metadata.contextWindow;
+
   return {
-    contextWindow: model.contextWindow || metadata.contextWindow,
+    ...model,
+    contextWindow: resolvedContextWindow,
     capabilities: model.capabilities || metadata.capabilities,
     supportedOutputFormats: model.supportedOutputFormats || metadata.supportedOutputFormats,
-    ...model,
     metrics: {
       ...metadata.metrics,
       ...((model as any).metrics || {})

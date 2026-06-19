@@ -1,5 +1,5 @@
 // src/tui/screens/ModelSelectionScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useAppState } from '../providers/AppStateProvider.js';
 import { AGENT_REQUIREMENTS_MAP, AgentProfile } from '../../agents/index.js';
@@ -29,15 +29,53 @@ const memWidth = 10;
 const ctxWidth = 11;
 const tpsWidth = 7;
 
+const MARQUEE_INTERVAL = 300;
+const MARQUEE_PAUSE_TICKS = 3; // pause 3 ticks (~900ms) at start of cycle
+
+function useMarquee(text: string, maxWidth: number, active: boolean): string {
+  const [offset, setOffset] = useState(0);
+  const tickRef = useRef(0);
+
+  useEffect(() => {
+    setOffset(0);
+    tickRef.current = 0;
+  }, [text, active]);
+
+  useEffect(() => {
+    if (!active || text.length <= maxWidth) return;
+
+    const totalSteps = text.length - maxWidth + 1;
+    const timer = setInterval(() => {
+      tickRef.current += 1;
+      if (tickRef.current <= MARQUEE_PAUSE_TICKS) return; // pause at start
+
+      setOffset(prev => {
+        const next = prev + 1;
+        if (next >= totalSteps) {
+          tickRef.current = 0; // reset pause counter
+          return 0;
+        }
+        return next;
+      });
+    }, MARQUEE_INTERVAL);
+
+    return () => clearInterval(timer);
+  }, [text, maxWidth, active]);
+
+  if (text.length <= maxWidth) {
+    return text.padEnd(maxWidth);
+  }
+  return text.slice(offset, offset + maxWidth);
+}
+
 function formatRow(
-  modelo: string,
+  modeloCol: string,
   params: any,
   score: any,
   memoria: any,
   contexto: any,
   tps: any
 ): string {
-  const modeloCol = cleanModelName(String(modelo)).slice(0, modeloWidth).padEnd(modeloWidth);
   const paramsCol = String(params).padEnd(paramsWidth);
   const scoreCol = String(score).padEnd(scoreWidth);
   const memoriaCol = String(memoria).padEnd(memWidth);
@@ -54,6 +92,30 @@ export const ModelSelectionScreen: React.FC = () => {
   const [modelScrollOffset, setModelScrollOffset] = useState(0);
   const [isInspecting, setIsInspecting] = useState(false);
   const visibleCount = 10;
+
+  // Marquee for the selected model name in the table
+  const agent_ = state.selectedAgents[state.currentAgentIndex] as AgentProfile | undefined;
+  const selectedModelName = agent_ ? (() => {
+    const agentModels = state.availableModelsByAgent?.[agent_] || [];
+    const m = agentModels[modelIndex];
+    return m ? cleanModelName(m.name) : '';
+  })() : '';
+  const marqueeTableName = useMarquee(selectedModelName, modeloWidth, !isInspecting && selectedModelName.length > modeloWidth);
+
+  // Marquee for the inspection panel title
+  const inspectedModelFullName = agent_ ? (() => {
+    const reqs = AGENT_REQUIREMENTS_MAP[agent_];
+    const agentModels = state.availableModelsByAgent?.[agent_] || [];
+    const models = agentModels
+      .filter((m) => m.sizeGb <= state.detectedVram)
+      .sort((a, b) => {
+        const scoreA = a.score || a.metrics[reqs.priorityMetric] || 50;
+        const scoreB = b.score || b.metrics[reqs.priorityMetric] || 50;
+        return scoreB - scoreA;
+      });
+    return models[modelIndex]?.name || '';
+  })() : '';
+  const marqueeInspectName = useMarquee(inspectedModelFullName, 60, isInspecting && inspectedModelFullName.length > 60);
 
   const agent = state.selectedAgents[state.currentAgentIndex] as AgentProfile | undefined;
 
@@ -226,7 +288,7 @@ export const ModelSelectionScreen: React.FC = () => {
 
     return (
       <Box flexDirection="column" marginY={1}>
-        <Text color={theme.colors.secondary} bold>📋 TELEMETRÍA DETALLADA: [{name}]</Text>
+        <Text color={theme.colors.secondary} bold>📋 TELEMETRÍA DETALLADA: [{marqueeInspectName}]</Text>
         <Text color={theme.colors.gray}>--------------------------------------------------------------------------------</Text>
         <Text color={theme.colors.white}>• Arquitectura        : {params} ({paramsB}) | MoE: {isMoe} | Categoría: {category} | Proveedor: {provider} | Licencia: {license} | Lanzamiento: {releaseDate}</Text>
         <Text color={theme.colors.white}>• Cuantización Óptima : {bestQuant} (Sugerido por hardware)</Text>
@@ -330,8 +392,14 @@ export const ModelSelectionScreen: React.FC = () => {
             const fitLabel = `${fitIndicator}${fitText} (${runMode.toUpperCase()})`;
             const fitColor = isPerfect ? theme.colors.success : (isGood ? theme.colors.warning : theme.colors.white);
 
+            // Use marquee for selected row, static truncation for others
+            const cleanName = cleanModelName(m.name);
+            const nameCol = isSelected
+              ? marqueeTableName.padEnd(modeloWidth)
+              : cleanName.slice(0, modeloWidth).padEnd(modeloWidth);
+
             const rowText = formatRow(
-              m.name,
+              nameCol,
               m.parameter_count || m.params || 'N/A',
               (typeof m.score === 'number' ? m.score.toFixed(1) : 'N/A'),
               (typeof m.memory_required_gb === 'number' ? `${m.memory_required_gb.toFixed(1)} GB` : 'N/A'),

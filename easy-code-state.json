@@ -4,18 +4,7 @@
   "activeAgents": [
     "agentic-orchestrator",
     "phase-explore",
-    "phase-spec",
-    "phase-init",
-    "phase-propose",
-    "phase-design",
-    "phase-tasks",
-    "phase-apply",
-    "phase-verify",
-    "phase-archive",
-    "phase-onboard",
-    "consensus-judge-a",
-    "consensus-judge-b",
-    "consensus-fixer"
+    "phase-propose"
   ],
   "hardwareProfile": {
     "os": "win32",
@@ -33,5 +22,10 @@
       "totalGb": 31
     },
     "accelerator": "cuda"
+  },
+  "modelAssignments": {
+    "agentic-orchestrator": "rdtand/Qwen3.6-35B-A3B-PrismaQuant-4.75bit-vllm",
+    "phase-explore": "optimum-intel-internal-testing/phi-3.5-moe-tiny-random",
+    "phase-propose": "rdtand/Qwen3.6-35B-A3B-PrismaQuant-4.75bit-vllm"
   }
 }
