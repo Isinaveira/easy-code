@@ -21,6 +21,16 @@ export type AgentProfile =
   | 'consensus-judge-b'
   | 'consensus-fixer';
 
+export type CognitiveProfile =
+  | 'EXPLORER'
+  | 'ORCHESTRATOR'
+  | 'PLANNER'
+  | 'ARCHITECT'
+  | 'CODER'
+  | 'VALIDATOR'
+  | 'LIGHTWEIGHT'
+  | 'SECRETARY';
+
 export interface ModelRequirements {
   minContextWindow: number;
   requiredCapabilities: Capability[];
