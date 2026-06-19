@@ -10,6 +10,7 @@ export const INITIAL_STATE: TuiState = {
   hardwareProfile: null,
   detectedVram: 0,
   availableModels: [],
+  availableModelsByAgent: {},
   modelAssignments: {},
   currentAgentIndex: 0,
   isLlmfitHealthy: false,
@@ -75,6 +76,7 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         hardwareProfile: action.payload.profile,
         detectedVram: action.payload.vram,
         availableModels: action.payload.models,
+        availableModelsByAgent: action.payload.modelsByAgent || {},
         isLlmfitHealthy: action.payload.isLlmfitHealthy
       };
 

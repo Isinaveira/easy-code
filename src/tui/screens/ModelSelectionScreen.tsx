@@ -28,7 +28,8 @@ export const ModelSelectionScreen: React.FC = () => {
 
   const getCompatibleModels = (currentAgent: AgentProfile) => {
     const reqs = AGENT_REQUIREMENTS_MAP[currentAgent];
-    return state.availableModels
+    const agentModels = state.availableModelsByAgent?.[currentAgent] || [];
+    return agentModels
       .filter((m) => m.sizeGb <= state.detectedVram)
       .sort((a, b) => {
         const scoreA = a.score || a.metrics[reqs.priorityMetric] || 50;

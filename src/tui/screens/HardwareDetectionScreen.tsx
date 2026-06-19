@@ -4,8 +4,7 @@ import { Box, Text, useInput } from 'ink';
 import { useAppState } from '../providers/AppStateProvider.js';
 import { useServices } from '../providers/ServiceProvider.js';
 import { LlmfitClient } from '../../registry/llmfit/client.js';
-import { LlmfitRegistry } from '../../registry/llmfit/registry.js';
-import { OllamaRegistry } from '../../registry/ollama/registry.js';
+import { ModelSelector } from '../../agents/ModelSelector.js';
 import { enrichModelDescriptor } from '../../agents/selector.js';
 import theme from '../theme/index.js';
 
@@ -20,25 +19,35 @@ export const HardwareDetectionScreen: React.FC = () => {
       const vram = profile.gpu ? profile.gpu.vramGb : profile.memory.totalGb;
       
       const llmfitClient = new LlmfitClient();
-      const isLlmfitHealthy = await llmfitClient.health();
-      
-      let registry;
-      if (isLlmfitHealthy) {
-        registry = new LlmfitRegistry(llmfitClient);
-      } else {
-        registry = new OllamaRegistry();
+      const selector = new ModelSelector(llmfitClient);
+      if (profile) {
+        selector.setHardwareProfile(profile);
       }
-      
-      const rawHubModels = await registry.listAvailable();
-      const cognitiveCatalog = rawHubModels.map(enrichModelDescriptor);
+
+      const modelsByAgent: Record<string, any[]> = {};
+      const allFetchedModels: any[] = [];
+
+      for (const agent of state.selectedAgents) {
+        // Query llmfit with filters and fallback sequence for this specific agent
+        const rawAgentModels = await selector.getCandidatesForAgent(agent as any);
+        const enriched = rawAgentModels.map(enrichModelDescriptor);
+        modelsByAgent[agent] = enriched;
+        allFetchedModels.push(...enriched);
+      }
+
+      // Deduplicate allFetchedModels by name for backwards compatibility
+      const uniqueModels = allFetchedModels.filter(
+        (model, index, self) => self.findIndex((m) => m.name === model.name) === index
+      );
       
       dispatch({
         type: 'SET_DETECTION_RESULTS',
         payload: {
           profile,
           vram,
-          models: cognitiveCatalog,
-          isLlmfitHealthy
+          models: uniqueModels,
+          modelsByAgent,
+          isLlmfitHealthy: true
         }
       });
       dispatch({ type: 'NAVIGATE', payload: 'MODEL_SELECTION' });

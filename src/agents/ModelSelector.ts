@@ -94,12 +94,14 @@ export class ModelSelector {
     }
   }
 
-  async selectModelForAgent(agent: AgentProfile): Promise<ModelDescriptor> {
+  private lastQuerySent: string = '';
+  private lastFiltersApplied: Record<string, any> = {};
+
+  async getCandidatesForAgent(agent: AgentProfile): Promise<ModelDescriptor[]> {
     const profile = this.getAgentProfile(agent);
     const baseFilters = this.getProfileFilters(profile);
     
-    // Logging start of selection
-    console.log(`[ModelSelector] Iniciando selección para el agente: [${agent}] con perfil: [${profile}]`);
+    console.log(`[ModelSelector] Buscando candidatos para el agente: [${agent}] con perfil: [${profile}]`);
 
     let models: ModelDescriptor[] = [];
     let querySent = '';
@@ -115,8 +117,6 @@ export class ModelSelector {
       return this.client.getModels(filters);
     };
 
-    const startTime = Date.now();
-    
     // 1. Initial query execution
     models = await runQuery(filtersApplied);
     console.log(`[ModelSelector] Respuesta recibida: ${models.length} candidatos encontrados.`);
@@ -157,6 +157,20 @@ export class ModelSelector {
       models = await runQuery(filtersApplied);
     }
 
+    this.lastQuerySent = querySent;
+    this.lastFiltersApplied = filtersApplied;
+
+    return models;
+  }
+
+  async selectModelForAgent(agent: AgentProfile): Promise<ModelDescriptor> {
+    const profile = this.getAgentProfile(agent);
+    
+    // Logging start of selection
+    console.log(`[ModelSelector] Iniciando selección para el agente: [${agent}] con perfil: [${profile}]`);
+
+    const startTime = Date.now();
+    const models = await this.getCandidatesForAgent(agent);
     const elapsed = Date.now() - startTime;
 
     if (models.length === 0) {
@@ -173,8 +187,8 @@ export class ModelSelector {
       agent,
       profileUsed: profile,
       hardwareDetected: this.hardwareProfile || 'Unknown',
-      querySent,
-      filtersApplied,
+      querySent: this.lastQuerySent,
+      filtersApplied: this.lastFiltersApplied,
       candidatesCount: models.length,
       modelSelected: selected.name,
       score: selected.score || 50,

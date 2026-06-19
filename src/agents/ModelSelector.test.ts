@@ -226,5 +226,20 @@ describe('ModelSelector', () => {
         '[ModelSelector] Error: No se encontraron candidatos compatibles para el agente [phase-tasks].'
       );
     });
+
+    it('should return all candidates for getCandidatesForAgent', async () => {
+      const selector = new ModelSelector(mockClient);
+      const mockModels = [
+        { name: 'phi3:mini', sizeGb: 2.2 },
+        { name: 'llama3:8b', sizeGb: 4.7 }
+      ];
+
+      (mockClient.getModels as any).mockResolvedValueOnce(mockModels);
+
+      const result = await selector.getCandidatesForAgent('phase-init');
+
+      expect(result).toEqual(mockModels);
+      expect(mockClient.getModels).toHaveBeenCalledTimes(1);
+    });
   });
 });
