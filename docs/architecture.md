@@ -10,6 +10,34 @@ The refactoring of **easy-code** has transformed a monolithic setup script into 
 
 ---
 
+## Spec Driven Development (SDD) Workflow
+
+The development lifecycle for new features and structural changes is strictly governed by the SDD workflow. It ensures that technical decisions are deliberately planned, reviewed, and persisted before implementation.
+
+```text
+Idea
+    ↓
+Specification
+    ↓
+Design
+    ↓
+Tasks
+    ↓
+Implementation
+    ↓
+Architecture Review
+    ↓
+ADR (si aplica)
+    ↓
+Verification
+    ↓
+Archive
+```
+
+All architectural decisions must be recorded using Architecture Decision Records (ADRs) in `docs/adr/` to trace the *why* of the architecture, feeding the future Knowledge Engine and RAG systems.
+
+---
+
 ## Architectural Layers
 
 ```

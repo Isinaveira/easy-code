@@ -20,6 +20,23 @@ The project provides standard CLI scripting tasks using `pnpm`:
 
 ---
 
+## Git Conventions & Traceability
+
+When implementing technical decisions or architectural changes, developers must:
+1. Refer to the corresponding Architecture Decision Record (ADR) in the commit message.
+2. Provide context of *why* the code was changed directly linked to the SDD process.
+
+**Commit Message Format**:
+```text
+feat(scope): brief description
+
+Refs: ADR-XXXX
+```
+
+This ensures full bidirectional traceability between Specifications, Tasks, ADRs, and Commits for future consumption by the Knowledge Engine.
+
+---
+
 ## Extending the Control Plane
 
 - **Adding a GPU Strategy**: Implement `GpuDetectionStrategy` under `src/hardware/strategies/` and register it inside `HardwareDetector`.
