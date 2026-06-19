@@ -166,7 +166,7 @@ export class ModelSelector {
   async getCandidatesFromLlmfitHardFilters(): Promise<ModelDescriptor[]> {
     const filters = {
       sort: 'score',
-      min_fit: 'fair',
+      min_fit: 'marginal',
       include_too_tight: false,
       top_only: true,
       limit: 100

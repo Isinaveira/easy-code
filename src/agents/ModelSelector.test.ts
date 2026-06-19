@@ -79,7 +79,7 @@ describe('ModelSelector', () => {
       const newModeCall = (mockClient.getModels as any).mock.calls[0][0];
       expect(newModeCall).toEqual({
         sort: 'score',
-        min_fit: 'fair',
+        min_fit: 'marginal',
         include_too_tight: false,
         top_only: true,
         limit: 100
