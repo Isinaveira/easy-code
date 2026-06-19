@@ -178,18 +178,30 @@ export const ModelSelectionScreen: React.FC = () => {
     const m = models[modelIndex];
     const name = m.name;
     const params = m.parameter_count || m.params || 'N/A';
+    const paramsB = typeof m.params_b === 'number' ? `${m.params_b.toFixed(1)}B` : 'N/A';
     const isMoe = m.is_moe ? 'Sí' : 'No';
     const category = m.category || 'N/A';
+    const provider = m.provider || 'N/A';
+    const license = m.license || 'N/A';
+    const releaseDate = m.release_date || 'N/A';
+
     const bestQuant = m.best_quant || 'N/A';
+
     const memReq = typeof m.memory_required_gb === 'number' ? `${m.memory_required_gb.toFixed(1)} GB` : (typeof m.sizeGb === 'number' ? `${m.sizeGb.toFixed(1)} GB` : 'N/A');
+    const totalMem = typeof m.total_memory_gb === 'number' ? `${m.total_memory_gb.toFixed(1)} GB` : 'N/A';
     const utilPct = m.utilization_pct ? `${m.utilization_pct}%` : 'N/A';
+    const memAvailable = typeof m.memory_available_gb === 'number' ? `${m.memory_available_gb.toFixed(1)} GB` : 'N/A';
+    const moeOffloaded = typeof m.moe_offloaded_gb === 'number' ? `${m.moe_offloaded_gb.toFixed(1)} GB` : 'N/A';
+
     const ctx = m.context_length || m.contextWindow || 'N/A';
-    
+    const useCase = m.use_case || m.use || 'N/A';
+
     let caps = 'Ninguna específica';
     if (Array.isArray(m.capabilities) && m.capabilities.length > 0) {
       caps = m.capabilities.join(', ');
     }
-    
+    const supportsTp = Array.isArray(m.supports_tp) ? m.supports_tp.join(', ') : 'N/A';
+
     const score = typeof m.score === 'number' ? m.score.toFixed(1) : 'N/A';
     
     let scoreContext = 'N/A';
@@ -204,7 +216,9 @@ export const ModelSelectionScreen: React.FC = () => {
       scoreFit = typeof m.score_components.fit === 'number' ? String(m.score_components.fit) : 'N/A';
     }
     
+    const runtime = m.runtime || 'N/A';
     const runtimeLabel = m.runtime_label || m.runtime || 'N/A';
+    const runMode = m.run_mode || 'N/A';
     const runModeLabel = m.run_mode_label || m.run_mode || 'N/A';
     
     const notes = Array.isArray(m.notes) ? m.notes : [];
@@ -214,14 +228,14 @@ export const ModelSelectionScreen: React.FC = () => {
       <Box flexDirection="column" marginY={1}>
         <Text color={theme.colors.secondary} bold>📋 TELEMETRÍA DETALLADA: [{name}]</Text>
         <Text color={theme.colors.gray}>--------------------------------------------------------------------------------</Text>
-        <Text color={theme.colors.white}>• Arquitectura        : {params} | MoE: {isMoe} | Categoría: {category}</Text>
+        <Text color={theme.colors.white}>• Arquitectura        : {params} ({paramsB}) | MoE: {isMoe} | Categoría: {category} | Proveedor: {provider} | Licencia: {license} | Lanzamiento: {releaseDate}</Text>
         <Text color={theme.colors.white}>• Cuantización Óptima : {bestQuant} (Sugerido por hardware)</Text>
-        <Text color={theme.colors.white}>• Uso de Memoria      : Requiere {memReq} (Ocupará el {utilPct} del sistema)</Text>
-        <Text color={theme.colors.white}>• Contexto Nativo     : {ctx} tokens</Text>
-        <Text color={theme.colors.white}>• Capacidades Nativas : {caps}</Text>
+        <Text color={theme.colors.white}>• Uso de Memoria      : Requiere {memReq} (Total: {totalMem}) | Ocupará el {utilPct} del sistema (Disponible: {memAvailable}) | MoE Offload: {moeOffloaded}</Text>
+        <Text color={theme.colors.white}>• Contexto Nativo     : {ctx} tokens | Caso de Uso: {useCase}</Text>
+        <Text color={theme.colors.white}>• Capacidades Nativas : {caps} | Tensor Parallelism (TP): {supportsTp}</Text>
         <Text color={theme.colors.white}>• Desglose de Score   : Global {score} / 100</Text>
         <Text color={theme.colors.gray}>  ├── Contexto: {scoreContext} | Calidad: {scoreQuality} | Velocidad: {scoreSpeed} | Ajuste: {scoreFit}</Text>
-        <Text color={theme.colors.white}>• Runtime Estimado    : {runtimeLabel} vía {runModeLabel}</Text>
+        <Text color={theme.colors.white}>• Runtime Estimado    : {runtimeLabel} ({runtime}) vía {runModeLabel} ({runMode})</Text>
         
         {notes.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
