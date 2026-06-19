@@ -1,15 +1,22 @@
 // src/agents/ModelSelector.ts
 import { LlmfitClient } from '../registry/llmfit/client.js';
 import { ModelDescriptor } from '../compatibility/types.js';
-import type { AgentProfile } from './types.js';
+import type { AgentProfile, CognitiveProfile } from './types.js';
 import fs from 'fs/promises';
 import path from 'path';
 
+import { HFClient } from '../registry/hf/client.js';
+import { extractFeatures } from './scoring/extractor.js';
+import { calculateScore } from './scoring/engine.js';
+import { normalizeModelName } from '../registry/hf/normalizer.js';
+
 export type SelectorProfile = 'FAST' | 'BALANCED' | 'QUALITY' | 'CODING';
+
+const LEGACY_FILTERS_ENABLED = true;
 
 export interface SelectionTrace {
   agent: string;
-  profileUsed: SelectorProfile;
+  profileUsed: SelectorProfile | CognitiveProfile;
   hardwareDetected: any;
   querySent: string;
   filtersApplied: Record<string, any>;
@@ -23,22 +30,57 @@ export interface SelectionTrace {
   memoryUsed: number;
   quantizationChosen: string;
   timestamp: string;
+  
+  legacyModel?: string;
+  newModel?: string;
+  divergenceScore?: number;
 }
 
 export class ModelSelector {
   private client: LlmfitClient;
+  private hfClient: HFClient;
   private traces: SelectionTrace[] = [];
   private hardwareProfile: any = null;
 
-  constructor(client: LlmfitClient = new LlmfitClient()) {
+  constructor(client: LlmfitClient = new LlmfitClient(), hfClient: HFClient = new HFClient()) {
     this.client = client;
+    this.hfClient = hfClient;
   }
 
   setHardwareProfile(profile: any) {
     this.hardwareProfile = profile;
   }
 
-  getAgentProfile(agent: AgentProfile): SelectorProfile {
+  getAgentProfile(agent: AgentProfile): CognitiveProfile {
+    switch (agent) {
+      case 'phase-init':
+      case 'phase-explore':
+        return 'EXPLORER';
+      case 'agentic-orchestrator':
+        return 'ORCHESTRATOR';
+      case 'phase-propose':
+      case 'phase-spec':
+        return 'PLANNER';
+      case 'phase-design':
+        return 'ARCHITECT';
+      case 'phase-apply':
+      case 'consensus-judge-a':
+      case 'consensus-judge-b':
+      case 'consensus-fixer':
+        return 'CODER';
+      case 'phase-verify':
+        return 'VALIDATOR';
+      case 'phase-tasks':
+      case 'phase-onboard':
+        return 'LIGHTWEIGHT';
+      case 'phase-archive':
+        return 'SECRETARY';
+      default:
+        return 'LIGHTWEIGHT';
+    }
+  }
+
+  getLegacyAgentProfile(agent: AgentProfile): SelectorProfile {
     switch (agent) {
       case 'phase-init':
       case 'phase-explore':
@@ -63,49 +105,30 @@ export class ModelSelector {
     }
   }
 
+  /**
+   * @deprecated Usado únicamente en Shadow Mode legacy
+   */
   getProfileFilters(profile: SelectorProfile): Record<string, any> {
     switch (profile) {
       case 'FAST':
-        return {
-          sort: 'tps',
-          min_fit: 'good',
-          include_too_tight: false,
-          top_only: true
-        };
+        return { sort: 'tps', min_fit: 'good', include_too_tight: false, top_only: true };
       case 'BALANCED':
-        return {
-          sort: 'score',
-          min_fit: 'good',
-          include_too_tight: false,
-          top_only: true
-        };
+        return { sort: 'score', min_fit: 'good', include_too_tight: false, top_only: true };
       case 'QUALITY':
-        return {
-          sort: 'score',
-          min_fit: 'good',
-          include_too_tight: false,
-          top_only: true
-        };
+        return { sort: 'score', min_fit: 'good', include_too_tight: false, top_only: true };
       case 'CODING':
-        return {
-          use_case: 'Coding',
-          sort: 'score'
-        };
+        return { use_case: 'Coding', sort: 'score' };
     }
   }
 
   private lastQuerySent: string = '';
   private lastFiltersApplied: Record<string, any> = {};
 
-  async getCandidatesForAgent(agent: AgentProfile): Promise<ModelDescriptor[]> {
-    const profile = this.getAgentProfile(agent);
-    const baseFilters = this.getProfileFilters(profile);
-    
-    console.log(`[ModelSelector] Buscando candidatos para el agente: [${agent}] con perfil: [${profile}]`);
-
-    let models: ModelDescriptor[] = [];
+  async getLegacyCandidatesForAgent(agent: AgentProfile): Promise<ModelDescriptor[]> {
+    const profile = this.getLegacyAgentProfile(agent);
+    let filtersApplied = this.getProfileFilters(profile);
+    const baseFilters = { ...filtersApplied };
     let querySent = '';
-    let filtersApplied = { ...baseFilters };
 
     const runQuery = async (filters: Record<string, any>) => {
       const queryParams = new URLSearchParams();
@@ -113,98 +136,131 @@ export class ModelSelector {
         queryParams.append(key, String(val));
       }
       querySent = `/api/v1/models/top?${queryParams.toString()}`;
-      console.log(`[ModelSelector] Enviando consulta a llmfit: ${querySent}`);
       return this.client.getModels(filters);
     };
 
-    // 1. Initial query execution
-    models = await runQuery(filtersApplied);
-    console.log(`[ModelSelector] Respuesta recibida: ${models.length} candidatos encontrados.`);
+    let models = await runQuery(filtersApplied);
 
-    // Fallback Step 1: If CODING returns 0 results, query use_case = General Purpose
     if (models.length === 0 && profile === 'CODING') {
-      console.warn(`[ModelSelector] 0 candidatos en CODING. Ejecutando fallback 1: use_case = 'General Purpose'`);
-      filtersApplied = {
-        ...baseFilters,
-        use_case: 'General Purpose'
-      };
+      filtersApplied = { ...baseFilters, use_case: 'General Purpose' };
       models = await runQuery(filtersApplied);
     }
-
-    // Fallback Step 2: If still 0, completely remove use_case filter
     if (models.length === 0 && filtersApplied.use_case) {
-      console.warn(`[ModelSelector] 0 candidatos con use_case. Ejecutando fallback 2: eliminando filtro use_case`);
       const { use_case, ...rest } = filtersApplied;
       filtersApplied = rest;
       models = await runQuery(filtersApplied);
     }
-
-    // Fallback Step 3: If still 0, decrease min_fit to 'fair'
     if (models.length === 0 && filtersApplied.min_fit === 'good') {
-      console.warn(`[ModelSelector] 0 candidatos con min_fit = 'good'. Ejecutando fallback 3: disminuyendo min_fit a 'fair'`);
-      filtersApplied = {
-        ...filtersApplied,
-        min_fit: 'fair'
-      };
+      filtersApplied = { ...filtersApplied, min_fit: 'fair' };
       models = await runQuery(filtersApplied);
     }
-
-    // Fallback Step 4: If still 0, remove min_fit filter
     if (models.length === 0 && filtersApplied.min_fit) {
-      console.warn(`[ModelSelector] 0 candidatos. Ejecutando fallback 4: eliminando min_fit`);
       const { min_fit, ...rest } = filtersApplied;
       filtersApplied = rest;
       models = await runQuery(filtersApplied);
     }
 
-    this.lastQuerySent = querySent;
-    this.lastFiltersApplied = filtersApplied;
-
     return models;
   }
 
-  async selectModelForAgent(agent: AgentProfile): Promise<ModelDescriptor> {
-    const profile = this.getAgentProfile(agent);
+  async getCandidatesFromLlmfitHardFilters(): Promise<ModelDescriptor[]> {
+    const filters = {
+      sort: 'score',
+      min_fit: 'fair',
+      include_too_tight: false,
+      top_only: true,
+      limit: 100
+    };
     
-    // Logging start of selection
-    console.log(`[ModelSelector] Iniciando selección para el agente: [${agent}] con perfil: [${profile}]`);
+    const queryParams = new URLSearchParams();
+    for (const [key, val] of Object.entries(filters)) {
+      queryParams.append(key, String(val));
+    }
+    this.lastQuerySent = `/api/v1/models/top?${queryParams.toString()}`;
+    this.lastFiltersApplied = filters;
 
-    const startTime = Date.now();
-    const models = await this.getCandidatesForAgent(agent);
-    const elapsed = Date.now() - startTime;
+    return this.client.getModels(filters);
+  }
 
-    if (models.length === 0) {
-      const errMsg = `[ModelSelector] Error: No se encontraron candidatos compatibles para el agente [${agent}].`;
-      console.error(errMsg);
-      throw new Error(errMsg);
+  async getCandidatesForAgent(agent: AgentProfile): Promise<ModelDescriptor[]> {
+    const cognitiveProfile = this.getAgentProfile(agent);
+    const candidates = await this.getCandidatesFromLlmfitHardFilters();
+
+    if (candidates.length === 0) {
+      throw new Error(`[ModelSelector] Error: No se encontraron candidatos de llmfit para el pool inicial.`);
     }
 
-    const selected = models[0];
-    console.log(`[ModelSelector] Modelo elegido: [${selected.name}] en ${elapsed}ms`);
+    const scoredModels = await Promise.all(candidates.map(async (llmfitModel) => {
+      const canonical = normalizeModelName(llmfitModel.name);
+      const hfMeta = await this.hfClient.getModelMetadata(canonical.canonicalId);
+      const enriched = extractFeatures(llmfitModel, canonical, hfMeta);
+      const score = calculateScore(enriched, cognitiveProfile);
+      return { model: llmfitModel, enriched, finalScore: score };
+    }));
 
-    // Record selection trace log details
+    scoredModels.sort((a, b) => b.finalScore - a.finalScore);
+    return scoredModels.map(s => ({ ...s.model, score: s.finalScore }));
+  }
+
+  async selectModelForAgent(agent: AgentProfile): Promise<ModelDescriptor> {
+    const cognitiveProfile = this.getAgentProfile(agent);
+    console.log(`[ModelSelector] Iniciando selección NEW MODE para el agente: [${agent}] con perfil: [${cognitiveProfile}]`);
+
+    const startTime = Date.now();
+    
+    // We fetch candidates using the new scoring logic
+    const sortedCandidates = await this.getCandidatesForAgent(agent);
+    const selectedNew = sortedCandidates[0];
+    
+    let legacySelected: ModelDescriptor | undefined;
+
+    if (LEGACY_FILTERS_ENABLED) {
+      const legacyProfile = this.getLegacyAgentProfile(agent);
+      console.log(`[ModelSelector] Ejecutando SHADOW MODE (Legacy) para el agente: [${agent}] con perfil: [${legacyProfile}]`);
+      try {
+        const legacyCandidates = await this.getLegacyCandidatesForAgent(agent);
+        if (legacyCandidates.length > 0) {
+          legacySelected = legacyCandidates[0];
+        }
+      } catch (err) {
+        console.warn(`[ModelSelector] Shadow Mode Legacy falló para ${agent}:`, err);
+      }
+    }
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[ModelSelector] Modelo elegido: [${selectedNew.name}] en ${elapsed}ms`);
+
+    let divergenceScore = 0;
+    if (legacySelected && legacySelected.name !== selectedNew.name) {
+      divergenceScore = 1;
+      console.warn(`[SHADOW DIVERGENCE] Agente: ${agent} | OLD: ${legacySelected.name} | NEW: ${selectedNew.name}`);
+    }
+
     const trace: SelectionTrace = {
       agent,
-      profileUsed: profile,
+      profileUsed: cognitiveProfile,
       hardwareDetected: this.hardwareProfile || 'Unknown',
       querySent: this.lastQuerySent,
       filtersApplied: this.lastFiltersApplied,
-      candidatesCount: models.length,
-      modelSelected: selected.name,
-      score: selected.score || 50,
-      scoreComponents: selected.score_components || null,
-      estimatedTps: selected.estimated_tps || 0,
-      fitLevel: selected.fit_level || 'Unknown',
-      context: selected.contextWindow || 0,
-      memoryUsed: selected.memory_required_gb || selected.sizeGb,
-      quantizationChosen: selected.quant || 'Unknown',
-      timestamp: new Date().toISOString()
+      candidatesCount: sortedCandidates.length,
+      modelSelected: selectedNew.name,
+      score: selectedNew.score || 0,
+      scoreComponents: selectedNew.score_components || null,
+      estimatedTps: selectedNew.estimated_tps || 0,
+      fitLevel: selectedNew.fit_level || 'Unknown',
+      context: selectedNew.contextWindow || 0,
+      memoryUsed: selectedNew.memory_required_gb || selectedNew.sizeGb,
+      quantizationChosen: selectedNew.quant || 'Unknown',
+      timestamp: new Date().toISOString(),
+      legacyModel: legacySelected?.name,
+      newModel: selectedNew.name,
+      divergenceScore
     };
 
     this.traces.push(trace);
     await this.saveTraces();
 
-    return selected;
+    return selectedNew;
   }
 
   getTraces(): SelectionTrace[] {
