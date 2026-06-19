@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "init-env": "tsx index.ts",
-    "test": "vitest run",
+    "test:adr": "tsx scripts/validate-adrs.ts",
+    "test": "pnpm test:adr && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
