@@ -5,7 +5,6 @@ import { useAppState } from '../providers/AppStateProvider.js';
 import { useServices } from '../providers/ServiceProvider.js';
 import { LlmfitClient } from '../../registry/llmfit/client.js';
 import { ModelSelector } from '../../agents/ModelSelector.js';
-import { enrichModelDescriptor } from '../../agents/selector.js';
 import theme from '../theme/index.js';
 
 export const HardwareDetectionScreen: React.FC = () => {
@@ -30,9 +29,8 @@ export const HardwareDetectionScreen: React.FC = () => {
       for (const agent of state.selectedAgents) {
         // Query llmfit with filters and fallback sequence for this specific agent
         const rawAgentModels = await selector.getCandidatesForAgent(agent as any);
-        const enriched = rawAgentModels.map(enrichModelDescriptor);
-        modelsByAgent[agent] = enriched;
-        allFetchedModels.push(...enriched);
+        modelsByAgent[agent] = rawAgentModels;
+        allFetchedModels.push(...rawAgentModels);
       }
 
       // Deduplicate allFetchedModels by name for backwards compatibility

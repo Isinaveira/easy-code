@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useAppState } from '../providers/AppStateProvider.js';
-import { AGENT_REQUIREMENTS_MAP, AgentProfile } from '../../agents/index.js';
+import { AgentProfile } from '../../agents/index.js';
 import theme from '../theme/index.js';
 
 function cleanModelName(name: string): string {
@@ -113,13 +113,12 @@ export const ModelSelectionScreen: React.FC = () => {
   const agent = state.selectedAgents[state.currentAgentIndex] as AgentProfile | undefined;
 
   const getCompatibleModels = (currentAgent: AgentProfile) => {
-    const reqs = AGENT_REQUIREMENTS_MAP[currentAgent];
     const agentModels = state.availableModelsByAgent?.[currentAgent] || [];
     return agentModels
       .filter((m) => m.sizeGb <= state.detectedVram)
       .sort((a, b) => {
-        const scoreA = a.score || a.metrics[reqs.priorityMetric] || 50;
-        const scoreB = b.score || b.metrics[reqs.priorityMetric] || 50;
+        const scoreA = a.score || 50;
+        const scoreB = b.score || 50;
         return scoreB - scoreA;
       });
   };
@@ -192,10 +191,8 @@ export const ModelSelectionScreen: React.FC = () => {
     return null;
   }
 
-  const reqs = AGENT_REQUIREMENTS_MAP[agent];
-  const minCaps = reqs.requiredCapabilities.length > 0 ? reqs.requiredCapabilities.join(', ') : 'None';
-
   const models = getCompatibleModels(agent);
+  const inferredUseCase = models[0]?.use_case || models[0]?.use || 'General';
   const hasNoModels = models.length === 0;
 
   const visibleModels = models.slice(modelScrollOffset, modelScrollOffset + visibleCount);
@@ -340,8 +337,8 @@ export const ModelSelectionScreen: React.FC = () => {
         <Text color={theme.colors.secondary} bold>
           🤖 Configurando Agente: {agent} ({state.currentAgentIndex + 1}/{state.selectedAgents.length})
         </Text>
-        <Text color={theme.colors.white}>   • Min. Contexto : {reqs.minContextWindow} tokens</Text>
-        <Text color={theme.colors.white}>   • Habilidades   : {minCaps}</Text>
+        <Text color={theme.colors.white}>   • Perfil Óptimo : {inferredUseCase}</Text>
+        <Text color={theme.colors.white}>   • Backend       : llmfit engine</Text>
       </Box>
 
       {/* Block 3: Interactive Table */}
